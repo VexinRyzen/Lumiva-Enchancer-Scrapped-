@@ -1,0 +1,1680 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <title>Lumiva Quantum Enhancer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    
+    * {
+      box-sizing: border-box;
+      touch-action: manipulation;
+    }
+
+    body {
+      font-family: 'Plus Jakarta Sans', sans-serif;
+      background-color: #030712;
+      color: #f3f4f6;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Glassmorphism Panels */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(20px);
+      -webkit-backdrop-filter: blur(20px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glass-card {
+      background: rgba(30, 41, 59, 0.45);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+    }
+
+    .glass-button {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+    .glass-button:hover, .glass-button:active {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(96, 165, 250, 0.5);
+    }
+
+    /* Custom Range Sliders */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      background: #1e293b;
+      border-radius: 4px;
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+    input[type=range]::-webkit-slider-thumb {
+      height: 18px;
+      width: 18px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -6px;
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.8);
+      transition: transform 0.1s ease;
+    }
+    input[type=range]::-webkit-slider-thumb:hover {
+      transform: scale(1.2);
+    }
+
+    .lumiva-glow {
+      text-shadow: 0 0 14px rgba(96, 165, 250, 0.65);
+    }
+
+    #split-divider {
+      box-shadow: 0 0 25px rgba(59, 130, 246, 0.9), 0 0 50px rgba(0, 0, 0, 0.95);
+    }
+
+    ::-webkit-scrollbar {
+      width: 5px;
+      height: 5px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(10, 15, 30, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(59, 130, 246, 0.35);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(59, 130, 246, 0.7);
+    }
+
+    .animate-spin-slow {
+      animation: spin 8s linear infinite;
+    }
+    @keyframes spin {
+      from { transform: rotate(0deg); }
+      to { transform: rotate(360deg); }
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-gray-950 text-slate-100 select-none">
+
+  <!-- APP NAVIGATION HEADER -->
+  <header class="h-14 border-b border-slate-800/80 glass-panel px-4 md:px-6 flex items-center justify-between shrink-0 z-40">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-cyan-500 via-blue-600 to-indigo-600 flex items-center justify-center shadow-lg shadow-blue-500/25 text-white">
+        <i class="fa-solid fa-atom text-lg animate-spin-slow"></i>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-wider text-slate-100 flex items-center gap-2 font-mono">
+          <span class="text-blue-400 lumiva-glow font-extrabold">LUMIVA</span> QUANTUM
+          <span id="ui-device-badge" class="text-[9px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30">DESKTOP</span>
+        </h1>
+        <p class="text-[10px] text-slate-400 hidden sm:block">Offline Frame-Deterministic WebGL Enhancer Engine</p>
+      </div>
+    </div>
+
+    <!-- Quick Status Stats -->
+    <div class="flex items-center gap-3 md:gap-5">
+      <div class="hidden lg:flex items-center gap-4 text-xs font-mono text-slate-400 border-r border-slate-800 pr-4">
+        <span>FPS: <strong id="hdr-fps" class="text-emerald-400">60.0</strong></span>
+        <span>LATENCY: <strong id="hdr-render-time" class="text-cyan-400">0.8ms</strong></span>
+        <span>EXPORT: <strong id="hdr-bitrate-tag" class="text-purple-400">25 Mbps</strong></span>
+        <span>RES: <strong id="hdr-res" class="text-blue-400">1080p</strong></span>
+      </div>
+
+      <button id="btn-export-media" class="px-4 py-2 rounded-xl bg-gradient-to-r from-blue-600 to-indigo-600 hover:from-blue-500 hover:to-indigo-500 text-white text-xs font-bold flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all hover:scale-105 active:scale-95">
+        <i class="fa-solid fa-wand-magic-sparkles"></i>
+        <span>Export Output</span>
+      </button>
+
+      <!-- Mobile Controls Drawer Toggle -->
+      <button id="btn-mobile-drawer-toggle" class="md:hidden w-9 h-9 rounded-xl glass-button flex items-center justify-center text-slate-200">
+        <i class="fa-solid fa-sliders"></i>
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN CONTENT CONTAINER -->
+  <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+    <!-- VIEWPORT & CANVAS CONTAINER (FITS STRICTLY IN SCREEN) -->
+    <div id="viewport-container" class="flex-1 h-full relative bg-gray-950 flex items-center justify-center overflow-hidden p-2">
+      
+      <!-- Screen-Fit Canvas Aspect Container -->
+      <div id="canvas-aspect-wrapper" class="relative max-w-full max-h-full flex items-center justify-center overflow-hidden rounded-xl border border-slate-800/80 shadow-2xl bg-black">
+        
+        <!-- WebGL Canvas -->
+        <canvas id="webgl-canvas" class="block cursor-crosshair max-w-full max-h-full object-contain"></canvas>
+
+        <!-- Split-Screen Interactive Divider -->
+        <div id="split-divider" class="absolute top-0 bottom-0 w-0.5 bg-blue-400 cursor-ew-resize z-20 pointer-events-none flex items-center justify-center" style="left: 50%;">
+          <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg text-xs font-bold border border-blue-300 pointer-events-auto hover:scale-110 transition-transform">
+            <i class="fa-solid fa-arrows-left-right"></i>
+          </div>
+        </div>
+
+        <!-- Before/After View Badges -->
+        <div id="badge-original" class="absolute top-3 left-3 z-10 pointer-events-none">
+          <span class="px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-semibold bg-slate-900/85 text-slate-300 border border-slate-700/60 backdrop-blur-md">
+            ORIGINAL
+          </span>
+        </div>
+        <div id="badge-enhanced" class="absolute top-3 right-3 z-10 pointer-events-none">
+          <span class="px-2.5 py-1 rounded-lg text-[10px] md:text-xs font-semibold bg-blue-950/85 text-blue-300 border border-blue-800/60 backdrop-blur-md shadow-lg">
+            ENHANCED
+          </span>
+        </div>
+
+      </div>
+
+      <!-- VIDEO TIMELINE CONTROLLER BAR -->
+      <div id="video-controls-bar" class="absolute bottom-5 left-1/2 -translate-x-1/2 z-20 glass-panel px-4 py-2.5 rounded-2xl flex items-center gap-3 border border-slate-700/60 shadow-2xl max-w-xl w-[92%] transition-all">
+        <button id="btn-play-pause" class="text-slate-200 hover:text-blue-400 transition-colors w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 border border-slate-700 shrink-0">
+          <i class="fa-solid fa-play text-xs"></i>
+        </button>
+        
+        <span id="time-display" class="text-[10px] md:text-[11px] font-mono text-slate-300 min-w-[75px] shrink-0">00:00/00:00</span>
+        
+        <input id="video-seekbar" type="range" min="0" max="100" value="0" class="flex-1 accent-blue-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+        
+        <div class="flex items-center gap-2 border-l border-slate-800 pl-2 shrink-0">
+          <button id="btn-mute" class="text-slate-300 hover:text-blue-400 text-xs p-1">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+          <input id="audio-volume" type="range" min="0" max="1" step="0.05" value="1" class="w-12 md:w-16 accent-blue-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+        </div>
+      </div>
+
+    </div>
+
+    <!-- CONTROLS & DIAGNOSTIC SIDEBAR PANEL -->
+    <div id="control-panel" class="w-full md:w-96 glass-panel h-full z-30 flex flex-col border-l border-slate-800/80 shrink-0 overflow-hidden absolute md:relative bottom-0 left-0 right-0 max-h-[85vh] md:max-h-full transition-transform duration-300 translate-y-full md:translate-y-0">
+      
+      <!-- Panel Header Tab Bar -->
+      <div class="flex border-b border-slate-800/80 bg-slate-900/60 shrink-0">
+        <button id="tab-btn-controls" class="flex-1 py-3 text-xs font-semibold text-blue-400 border-b-2 border-blue-500 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-sliders"></i> Pipeline Engine
+        </button>
+        <button id="tab-btn-console" class="flex-1 py-3 text-xs font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-terminal"></i> Terminal <span id="console-badge" class="px-1.5 py-0.2 text-[9px] rounded-full bg-slate-800 text-slate-400 font-mono">0</span>
+        </button>
+        <button id="btn-close-mobile-drawer" class="md:hidden px-4 text-slate-400 text-sm">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- TAB 1: CONTROLS PIPELINE -->
+      <div id="tab-content-controls" class="flex-1 overflow-y-auto p-4 space-y-4">
+
+        <!-- Input Media Loader -->
+        <div class="space-y-2">
+          <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+            <span><i class="fa-solid fa-folder-open text-blue-400 mr-1.5"></i> Media Input</span>
+            <span id="input-type-tag" class="text-[10px] text-purple-400 font-mono font-normal">DEMO LOOP</span>
+          </label>
+          
+          <div class="grid grid-cols-2 gap-2">
+            <label class="glass-button p-3 rounded-xl cursor-pointer text-center text-xs flex flex-col items-center justify-center gap-1.5">
+              <i class="fa-solid fa-file-arrow-up text-blue-400 text-base"></i>
+              <span class="text-slate-200 font-medium">Upload File</span>
+              <span class="text-[9px] text-slate-400">Video or Image</span>
+              <input type="file" id="media-file-input" accept="video/*,image/*,.mp4,.webm,.mov,.mkv,.avi,.ogv,.png,.jpg,.jpeg,.webp,.bmp" class="hidden">
+            </label>
+            
+            <button id="btn-synthetic-preset" class="glass-button p-3 rounded-xl text-xs flex flex-col items-center justify-center gap-1.5">
+              <i class="fa-solid fa-layer-group text-purple-400 text-base"></i>
+              <span class="text-slate-200 font-medium">Demo Loop</span>
+              <span class="text-[9px] text-slate-400">Test Pattern</span>
+            </button>
+          </div>
+          <p id="media-filename-label" class="text-[10px] text-slate-400 truncate text-center italic bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+            Loaded: Synthetic Quantum Dynamic Loop
+          </p>
+        </div>
+
+        <!-- Aspect Ratio Selector Engine -->
+        <div class="space-y-2 border-t border-slate-800/80 pt-3">
+          <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-crop text-cyan-400"></i> Aspect Ratio & Framing
+          </label>
+          
+          <div class="grid grid-cols-3 gap-1.5">
+            <button class="aspect-btn glass-button py-2 rounded-lg text-[11px] font-mono bg-blue-600/30 text-blue-300 border-blue-500/50" data-aspect="original">Auto / Src</button>
+            <button class="aspect-btn glass-button py-2 rounded-lg text-[11px] font-mono text-slate-300" data-aspect="16:9">16:9</button>
+            <button class="aspect-btn glass-button py-2 rounded-lg text-[11px] font-mono text-slate-300" data-aspect="9:16">9:16 Vertical</button>
+            <button class="aspect-btn glass-button py-2 rounded-lg text-[11px] font-mono text-slate-300" data-aspect="1:1">1:1 Square</button>
+            <button class="aspect-btn glass-button py-2 rounded-lg text-[11px] font-mono text-slate-300" data-aspect="4:3">4:3 Classic</button>
+            <button class="aspect-btn glass-button py-2 rounded-lg text-[11px] font-mono text-slate-300" data-aspect="21:9">21:9 Cinema</button>
+          </div>
+        </div>
+
+        <!-- Export Frame Rate & Offline Pipeline -->
+        <div class="space-y-2 border-t border-slate-800/80 pt-3">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-gauge-simple-high text-amber-400"></i> Export Engine Mode
+            </label>
+            <span class="text-[9px] text-slate-400 font-mono">Capture Mode</span>
+          </div>
+
+          <div class="grid grid-cols-2 gap-1.5">
+            <button class="export-mode-btn glass-button py-1.5 rounded-lg text-[11px] font-mono bg-blue-600/30 text-blue-300 border-blue-500/50" data-mode="fast">
+              <i class="fa-solid fa-bolt mr-1"></i> Fast Real-Time (1x)
+            </button>
+            <button class="export-mode-btn glass-button py-1.5 rounded-lg text-[11px] font-mono text-slate-300" data-mode="precision">
+              <i class="fa-solid fa-bullseye mr-1"></i> Precision Frame
+            </button>
+          </div>
+
+          <div class="flex justify-between items-center pt-2">
+            <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-stopwatch text-emerald-400"></i> Export Frame Rate
+            </label>
+          </div>
+
+          <div class="grid grid-cols-3 gap-1.5">
+            <button class="export-fps-btn glass-button py-1.5 rounded-lg text-[11px] font-mono text-slate-300" data-fps="30">30 FPS</button>
+            <button class="export-fps-btn glass-button py-1.5 rounded-lg text-[11px] font-mono bg-blue-600/30 text-blue-300 border-blue-500/50" data-fps="60">60 FPS Smooth</button>
+            <button class="export-fps-btn glass-button py-1.5 rounded-lg text-[11px] font-mono text-slate-300" data-fps="native">Source Native</button>
+          </div>
+        </div>
+
+        <!-- Preview Resolution Scale (Lag-Free) -->
+        <div class="space-y-2 border-t border-slate-800/80 pt-3">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-gauge-high text-amber-400"></i> Preview Scale (Lag-Free)
+            </label>
+            <span class="text-[9px] text-slate-400 font-mono">Export stays 100% full quality</span>
+          </div>
+
+          <div class="grid grid-cols-4 gap-1.5">
+            <button class="preview-scale-btn glass-button py-1.5 rounded-lg text-[11px] font-mono text-slate-300" data-scale="0.25">25% Fast</button>
+            <button class="preview-scale-btn glass-button py-1.5 rounded-lg text-[11px] font-mono text-slate-300" data-scale="0.5">50%</button>
+            <button class="preview-scale-btn glass-button py-1.5 rounded-lg text-[11px] font-mono text-slate-300" data-scale="0.75">75%</button>
+            <button class="preview-scale-btn glass-button py-1.5 rounded-lg text-[11px] font-mono bg-blue-600/30 text-blue-300 border-blue-500/50" data-scale="1.0">100%</button>
+          </div>
+        </div>
+
+        <!-- Target Export Resolution & Bitrate -->
+        <div class="space-y-2 border-t border-slate-800/80 pt-3">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-film text-purple-400"></i> Export Resolution & Quality Profile
+            </label>
+            <span id="target-res-badge" class="text-[10px] bg-blue-950 text-blue-300 border border-blue-800/60 px-2 py-0.5 rounded font-mono">1080p (35M)</span>
+          </div>
+
+          <div class="grid grid-cols-4 gap-1.5">
+            <button class="res-preset-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300" data-res="480">480p</button>
+            <button class="res-preset-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300" data-res="720">720p</button>
+            <button class="res-preset-btn glass-button py-1.5 rounded-lg text-xs font-mono bg-blue-600/30 text-blue-300 border-blue-500/50" data-res="1080">1080p</button>
+            <button class="res-preset-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300" data-res="1440">2K</button>
+            <button class="res-preset-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300" data-res="2160">4K</button>
+            <button class="res-preset-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300 col-span-3" data-res="native">Source Native</button>
+          </div>
+
+          <!-- New Export Encoder Profile -->
+          <div class="pt-1">
+            <span class="text-[10px] text-slate-400 block mb-1">Encoder Profile (Anti-Blur Quality Guard)</span>
+            <div class="grid grid-cols-3 gap-1.5">
+              <button class="export-profile-btn glass-button py-1.5 rounded-lg text-[10px] font-mono bg-blue-600/30 text-blue-300 border-blue-500/50" data-profile="ultra">Ultra Crisp 80M</button>
+              <button class="export-profile-btn glass-button py-1.5 rounded-lg text-[10px] font-mono text-slate-300" data-profile="balanced">Balanced 35M</button>
+              <button class="export-profile-btn glass-button py-1.5 rounded-lg text-[10px] font-mono text-slate-300" data-profile="fast">Standard 15M</button>
+            </div>
+          </div>
+        </div>
+
+        <!-- Quick Quantum Presets -->
+        <div class="space-y-2 border-t border-slate-800/80 pt-3">
+          <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-wand-magic text-cyan-400"></i> Quantum Preset Profiles
+          </label>
+          <div class="grid grid-cols-2 gap-1.5">
+            <button id="preset-cinematic" class="glass-button py-1.5 px-2 rounded-lg text-[10px] font-medium text-slate-300 text-left flex items-center gap-1.5">
+              <i class="fa-solid fa-clapperboard text-blue-400"></i> Cinematic Pop
+            </button>
+            <button id="preset-anime" class="glass-button py-1.5 px-2 rounded-lg text-[10px] font-medium text-slate-300 text-left flex items-center gap-1.5">
+              <i class="fa-solid fa-paintbrush text-purple-400"></i> Anime / Cartoon
+            </button>
+            <button id="preset-vintage" class="glass-button py-1.5 px-2 rounded-lg text-[10px] font-medium text-slate-300 text-left flex items-center gap-1.5">
+              <i class="fa-solid fa-film text-amber-400"></i> Vintage Restore
+            </button>
+            <button id="preset-ultrasharp" class="glass-button py-1.5 px-2 rounded-lg text-[10px] font-medium text-slate-300 text-left flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt text-emerald-400"></i> Ultra Sharp 4K
+            </button>
+          </div>
+        </div>
+
+        <!-- AMD FidelityFX CAS Sharpening -->
+        <div class="space-y-2.5 border-t border-slate-800/80 pt-3">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt text-amber-400"></i> AMD FidelityFX CAS Sharpen
+            </label>
+            <input type="checkbox" id="toggle-cas" class="accent-blue-500 w-4 h-4 cursor-pointer" checked>
+          </div>
+          
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>CAS Sharpness Strength</span>
+              <span id="val-cas-sharpness" class="font-mono text-blue-400">0.85</span>
+            </div>
+            <input id="slider-cas-sharpness" type="range" min="0.0" max="2.0" step="0.05" value="0.85" class="w-full">
+          </div>
+        </div>
+
+        <!-- Bilateral Spatial Edge Denoise -->
+        <div class="space-y-2.5 border-t border-slate-800/80 pt-3">
+          <div class="flex justify-between items-center">
+            <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-filter text-emerald-400"></i> Edge Denoise Filter
+            </label>
+            <input type="checkbox" id="toggle-denoise" class="accent-blue-500 w-4 h-4 cursor-pointer" checked>
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Denoise Intensity</span>
+              <span id="val-denoise-strength" class="font-mono text-blue-400">0.30</span>
+            </div>
+            <input id="slider-denoise-strength" type="range" min="0.0" max="1.0" step="0.02" value="0.30" class="w-full">
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Edge Sensitivity</span>
+              <span id="val-denoise-threshold" class="font-mono text-blue-400">0.12</span>
+            </div>
+            <input id="slider-denoise-threshold" type="range" min="0.01" max="0.5" step="0.01" value="0.12" class="w-full">
+          </div>
+        </div>
+
+        <!-- Color Dynamic Range & Contrast -->
+        <div class="space-y-2.5 border-t border-slate-800/80 pt-3 mb-2">
+          <label class="text-[11px] font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-half-stroke text-purple-400"></i> DCI-P3 Color & Dynamic Range
+          </label>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Contrast Enhancement</span>
+              <span id="val-contrast" class="font-mono text-blue-400">1.10</span>
+            </div>
+            <input id="slider-contrast" type="range" min="0.8" max="1.8" step="0.02" value="1.10" class="w-full">
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Color Vibrance</span>
+              <span id="val-vibrance" class="font-mono text-blue-400">1.15</span>
+            </div>
+            <input id="slider-vibrance" type="range" min="0.5" max="2.0" step="0.05" value="1.15" class="w-full">
+          </div>
+        </div>
+
+      </div>
+
+      <!-- TAB 2: TERMINAL DIAGNOSTICS LOG -->
+      <div id="tab-content-console" class="flex-1 flex-col overflow-hidden hidden bg-gray-950">
+        
+        <div class="p-3 border-b border-slate-800/80 bg-slate-900/80 flex items-center justify-between shrink-0">
+          <span class="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-terminal text-blue-400"></i> System Diagnostics
+          </span>
+          
+          <div class="flex items-center gap-2">
+            <button id="btn-copy-console" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-blue-600/40 text-blue-400 text-xs font-medium border border-slate-700 flex items-center gap-1">
+              <i class="fa-solid fa-copy"></i> Copy Logs
+            </button>
+            <button id="btn-clear-console" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-red-600/40 text-slate-400 hover:text-red-300 text-xs border border-slate-700">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+
+        <div id="console-logs-container" class="flex-1 p-3 font-mono text-[11px] overflow-y-auto space-y-1.5 select-text">
+          <div class="text-slate-500 italic">[Lumiva Core] Engine Initialized.</div>
+        </div>
+
+      </div>
+
+      <!-- Footer Telemetry Strip -->
+      <div class="p-3 border-t border-slate-800 bg-slate-950/90 text-[10px] font-mono text-slate-400 flex items-center justify-between shrink-0">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          WebGL Pipeline Active
+        </span>
+        <span id="system-audio-tag" class="text-slate-400">WebAudio Synced</span>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- HIGH BITRATE EXPORT MODAL -->
+  <div id="export-modal" class="fixed inset-0 bg-slate-950/90 backdrop-blur-md z-50 flex items-center justify-center hidden">
+    <div class="glass-panel p-6 rounded-2xl border border-slate-700 max-w-md w-[90%] shadow-2xl space-y-4 text-center">
+      <div class="w-12 h-12 rounded-full bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center mx-auto text-xl">
+        <i id="export-spinner" class="fa-solid fa-circle-notch animate-spin"></i>
+      </div>
+
+      <div>
+        <h3 id="export-modal-title" class="text-base font-bold text-slate-100">Quantum Export Pipeline</h3>
+        <p id="export-modal-desc" class="text-xs text-slate-400 mt-1">Rendering clean uncompressed 100% enhanced stream...</p>
+      </div>
+
+      <div class="w-full bg-slate-800 h-2.5 rounded-full overflow-hidden border border-slate-700">
+        <div id="export-progress-bar" class="bg-gradient-to-r from-blue-500 via-indigo-500 to-purple-500 h-full w-0 transition-all duration-150"></div>
+      </div>
+
+      <div class="grid grid-cols-2 gap-2 text-[11px] font-mono text-slate-300 bg-slate-900/80 p-2.5 rounded-xl border border-slate-800">
+        <div class="text-left">
+          <span class="text-slate-500 block text-[9px]">PROGRESS</span>
+          <span id="export-status-text">Frame 0 / 0</span>
+        </div>
+        <div class="text-right">
+          <span class="text-slate-500 block text-[9px]">ESTIMATED TIME LEFT</span>
+          <span id="export-eta-text" class="text-cyan-400">Calculating...</span>
+        </div>
+      </div>
+
+      <div class="flex justify-between items-center text-xs font-mono text-slate-400">
+        <span>SPEED: <strong id="export-speed-text" class="text-emerald-400">0 FPS</strong></span>
+        <span id="export-percent-text" class="text-blue-400 font-bold">0%</span>
+      </div>
+
+      <button id="btn-cancel-export" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium border border-slate-700 w-full">
+        Cancel Export
+      </button>
+    </div>
+  </div>
+
+  <script>
+    // --- TERMINAL DIAGNOSTIC LOGGER ---
+    const consoleLogsContainer = document.getElementById('console-logs-container');
+    const consoleBadge = document.getElementById('console-badge');
+    let logCount = 0;
+    let logHistory = [];
+
+    function logToTerminal(message, type = 'info') {
+      logCount++;
+      consoleBadge.innerText = logCount;
+
+      const timeStr = new Date().toLocaleTimeString();
+      let colorClass = 'text-slate-300';
+      let icon = '<i class="fa-solid fa-info text-blue-400"></i>';
+
+      if (type === 'error') {
+        colorClass = 'text-red-400 bg-red-950/30 p-1 rounded border border-red-900/50';
+        icon = '<i class="fa-solid fa-triangle-exclamation text-red-400"></i>';
+      } else if (type === 'warn') {
+        colorClass = 'text-amber-300';
+        icon = '<i class="fa-solid fa-circle-exclamation text-amber-400"></i>';
+      } else if (type === 'success') {
+        colorClass = 'text-emerald-400';
+        icon = '<i class="fa-solid fa-check text-emerald-400"></i>';
+      }
+
+      const logLine = `[${timeStr}] ${message}`;
+      logHistory.push(logLine);
+
+      const div = document.createElement('div');
+      div.className = `flex items-start gap-2 ${colorClass}`;
+      div.innerHTML = `<span class="shrink-0 text-slate-500">${icon}</span> <span>${message}</span>`;
+      
+      consoleLogsContainer.appendChild(div);
+      consoleLogsContainer.scrollTop = consoleLogsContainer.scrollHeight;
+    }
+
+    window.onerror = function(msg, url, lineNo) {
+      logToTerminal(`Runtime Exception: ${msg} (Line ${lineNo})`, 'error');
+      return false;
+    };
+
+    // --- APPLICATION STATE ---
+    const state = {
+      splitPos: 0.5,
+      targetHeight: 1080,
+      previewScale: 1.0,
+      aspectRatio: 'original',
+      exportFps: 60,
+      exportMode: 'fast', // 'fast' | 'precision'
+      exportProfile: 'ultra', // 'ultra' | 'balanced' | 'fast'
+      isNativeRes: false,
+      casEnabled: true,
+      casSharpness: 0.85,
+      denoiseEnabled: true,
+      denoiseStrength: 0.30,
+      denoiseThreshold: 0.12,
+      contrast: 1.10,
+      vibrance: 1.15,
+      mediaType: 'synthetic',
+      fps: 60,
+      isExporting: false,
+      isCancelExportRequested: false,
+      isMobile: false
+    };
+
+    // --- DOM REFS & EVENT HANDLERS ---
+    const viewportContainer = document.getElementById('viewport-container');
+    const canvasAspectWrapper = document.getElementById('canvas-aspect-wrapper');
+    const splitDivider = document.getElementById('split-divider');
+    const badgeOriginal = document.getElementById('badge-original');
+    const badgeEnhanced = document.getElementById('badge-enhanced');
+    const mediaFileInput = document.getElementById('media-file-input');
+    const btnSynthetic = document.getElementById('btn-synthetic-preset');
+    const mediaFilenameLabel = document.getElementById('media-filename-label');
+    const inputTypeTag = document.getElementById('input-type-tag');
+
+    // Controls Panel & Mobile Drawer
+    const controlPanel = document.getElementById('control-panel');
+    const btnMobileDrawerToggle = document.getElementById('btn-mobile-drawer-toggle');
+    const btnCloseMobileDrawer = document.getElementById('btn-close-mobile-drawer');
+    const uiDeviceBadge = document.getElementById('ui-device-badge');
+
+    // Video Playback DOM
+    const videoControlsBar = document.getElementById('video-controls-bar');
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const seekbar = document.getElementById('video-seekbar');
+    const timeDisplay = document.getElementById('time-display');
+    const btnMute = document.getElementById('btn-mute');
+    const audioVolume = document.getElementById('audio-volume');
+
+    // Telemetry DOM
+    const hdrFps = document.getElementById('hdr-fps');
+    const hdrRenderTime = document.getElementById('hdr-render-time');
+    const hdrBitrateTag = document.getElementById('hdr-bitrate-tag');
+    const hdrRes = document.getElementById('hdr-res');
+
+    // Shader Controls DOM
+    const sliderCasSharpness = document.getElementById('slider-cas-sharpness');
+    const valCasSharpness = document.getElementById('val-cas-sharpness');
+    const toggleCas = document.getElementById('toggle-cas');
+
+    const sliderDenoiseStrength = document.getElementById('slider-denoise-strength');
+    const valDenoiseStrength = document.getElementById('val-denoise-strength');
+    const sliderDenoiseThreshold = document.getElementById('slider-denoise-threshold');
+    const valDenoiseThreshold = document.getElementById('val-denoise-threshold');
+    const toggleDenoise = document.getElementById('toggle-denoise');
+
+    const sliderContrast = document.getElementById('slider-contrast');
+    const valContrast = document.getElementById('val-contrast');
+    const sliderVibrance = document.getElementById('slider-vibrance');
+    const valVibrance = document.getElementById('val-vibrance');
+
+    // Modal DOM
+    const btnExportMedia = document.getElementById('btn-export-media');
+    const exportModal = document.getElementById('export-modal');
+    const exportProgressBar = document.getElementById('export-progress-bar');
+    const exportStatusText = document.getElementById('export-status-text');
+    const exportPercentText = document.getElementById('export-percent-text');
+    const btnCancelExport = document.getElementById('btn-cancel-export');
+
+    // --- DEVICE DETECTION ---
+    function checkDeviceType() {
+      state.isMobile = window.innerWidth < 768 || ('ontouchstart' in window);
+      if (state.isMobile) {
+        uiDeviceBadge.innerText = 'TOUCH MOBILE';
+        uiDeviceBadge.className = 'text-[9px] px-2 py-0.5 rounded-full bg-amber-500/15 text-amber-300 border border-amber-500/30';
+      } else {
+        uiDeviceBadge.innerText = 'DESKTOP WEBGL';
+        uiDeviceBadge.className = 'text-[9px] px-2 py-0.5 rounded-full bg-blue-500/15 text-blue-300 border border-blue-500/30';
+      }
+    }
+
+    btnMobileDrawerToggle.addEventListener('click', () => {
+      controlPanel.classList.remove('translate-y-full');
+    });
+    btnCloseMobileDrawer.addEventListener('click', () => {
+      controlPanel.classList.add('translate-y-full');
+    });
+
+    // --- MEDIA & AUDIO NODES ---
+    let videoElement = document.createElement('video');
+    videoElement.loop = true;
+    videoElement.playsInline = true;
+    videoElement.crossOrigin = "anonymous";
+
+    let imageElement = new Image();
+
+    // Synthetic Test Pattern Generator
+    const syntheticCanvas = document.createElement('canvas');
+    syntheticCanvas.width = 1280;
+    syntheticCanvas.height = 720;
+    const synthCtx = syntheticCanvas.getContext('2d');
+    let synthFrame = 0;
+
+    function renderSyntheticPattern() {
+      synthFrame += 0.02;
+      const w = syntheticCanvas.width;
+      const h = syntheticCanvas.height;
+
+      synthCtx.fillStyle = '#030712';
+      synthCtx.fillRect(0, 0, w, h);
+
+      synthCtx.strokeStyle = 'rgba(59, 130, 246, 0.2)';
+      synthCtx.lineWidth = 1;
+      for (let x = 0; x < w; x += 40) {
+        synthCtx.beginPath(); synthCtx.moveTo(x, 0); synthCtx.lineTo(x, h); synthCtx.stroke();
+      }
+      for (let y = 0; y < h; y += 40) {
+        synthCtx.beginPath(); synthCtx.moveTo(0, y); synthCtx.lineTo(w, y); synthCtx.stroke();
+      }
+
+      const cx = w/2 + Math.cos(synthFrame) * 250;
+      const cy = h/2 + Math.sin(synthFrame * 1.2) * 120;
+
+      const grad = synthCtx.createRadialGradient(cx, cy, 10, cx, cy, 220);
+      grad.addColorStop(0, 'rgba(59, 130, 246, 0.95)');
+      grad.addColorStop(0.5, 'rgba(129, 140, 248, 0.4)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      synthCtx.fillStyle = grad;
+      synthCtx.fillRect(0, 0, w, h);
+
+      synthCtx.fillStyle = '#ffffff';
+      synthCtx.font = 'bold 38px Plus Jakarta Sans, sans-serif';
+      synthCtx.fillText('LUMIVA QUANTUM ENHANCER', 60, 100);
+
+      synthCtx.fillStyle = '#60a5fa';
+      synthCtx.font = '14px JetBrains Mono, monospace';
+      synthCtx.fillText(`OFFLINE FRAME ENGINE | FRAME ${Math.floor(synthFrame * 60)}`, 60, 135);
+
+      const bx = w - 360, by = 60;
+      synthCtx.fillStyle = '#1e293b';
+      synthCtx.fillRect(bx, by, 300, 200);
+      synthCtx.strokeStyle = '#3b82f6';
+      synthCtx.strokeRect(bx, by, 300, 200);
+
+      const imgData = synthCtx.getImageData(bx + 10, by + 10, 280, 180);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const noise = (Math.random() - 0.5) * 50;
+        data[i] = Math.min(255, Math.max(0, 100 + noise));
+        data[i+1] = Math.min(255, Math.max(0, 130 + noise));
+        data[i+2] = Math.min(255, Math.max(0, 180 + noise));
+        data[i+3] = 255;
+      }
+      synthCtx.putImageData(imgData, bx + 10, by + 10);
+    }
+
+    // --- THREE.JS ENGINE & SHADER PIPELINE ---
+    let renderer, scene, camera, mediaTexture;
+    let customPassMaterial, quadMesh;
+
+    function initThree() {
+      const canvas = document.getElementById('webgl-canvas');
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: false,
+        powerPreference: "high-performance",
+        preserveDrawingBuffer: true
+      });
+
+      // Context Loss Plan B Listener
+      canvas.addEventListener('webglcontextlost', (e) => {
+        e.preventDefault();
+        logToTerminal("WebGL Context Lost! Initiating Plan B Context Self-Repair...", "error");
+      }, false);
+
+      canvas.addEventListener('webglcontextrestored', () => {
+        logToTerminal("WebGL Context Restored. Re-allocating render state...", "success");
+        initThree();
+        updateAspectFraming();
+      }, false);
+
+      scene = new THREE.Scene();
+      camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+      mediaTexture = new THREE.CanvasTexture(syntheticCanvas);
+      mediaTexture.minFilter = THREE.LinearFilter;
+      mediaTexture.magFilter = THREE.LinearFilter;
+
+      const vertexShader = `
+        varying vec2 v_uv;
+        uniform vec2 u_uv_scale;
+        
+        void main() {
+          v_uv = (uv - 0.5) * u_uv_scale + 0.5;
+          gl_Position = vec4(position, 1.0);
+        }
+      `;
+
+      const fragmentShader = `
+        uniform sampler2D u_texture;
+        uniform vec2 u_resolution;
+        uniform float u_split_pos;
+        
+        uniform bool u_cas_enabled;
+        uniform float u_cas_sharpness;
+        
+        uniform bool u_denoise_enabled;
+        uniform float u_denoise_strength;
+        uniform float u_denoise_threshold;
+        
+        uniform float u_contrast;
+        uniform float u_vibrance;
+
+        varying vec2 v_uv;
+
+        vec4 cubic(float v) {
+          vec4 c;
+          c.x = (1.0/6.0)*(((-v+3.0)*v-3.0)*v+1.0);
+          c.y = (1.0/6.0)*(((3.0*v-6.0)*v)*v+4.0);
+          c.z = (1.0/6.0)*(((-3.0*v+3.0)*v+3.0)*v+1.0);
+          c.w = (1.0/6.0)*(v*v*v);
+          return c;
+        }
+
+        vec4 textureBicubic(sampler2D tex, vec2 texCoords) {
+          vec2 texSize = u_resolution;
+          vec2 invTexSize = 1.0 / texSize;
+          texCoords = texCoords * texSize - 0.5;
+          vec2 fxy = fract(texCoords);
+          texCoords -= fxy;
+
+          vec4 xcubic = cubic(fxy.x);
+          vec4 ycubic = cubic(fxy.y);
+
+          vec4 c = texCoords.xxyy + vec2(-0.5, +1.5).xyxy;
+          vec4 s = vec4(xcubic.x + xcubic.y, xcubic.z + xcubic.w, ycubic.x + ycubic.y, ycubic.z + ycubic.w);
+          vec4 offset = c + vec4(xcubic.y, xcubic.w, ycubic.y, ycubic.w) / s;
+
+          vec4 sample0 = texture2D(tex, vec2(offset.x, offset.z) * invTexSize);
+          vec4 sample1 = texture2D(tex, vec2(offset.y, offset.z) * invTexSize);
+          vec4 sample2 = texture2D(tex, vec2(offset.x, offset.w) * invTexSize);
+          vec4 sample3 = texture2D(tex, vec2(offset.y, offset.w) * invTexSize);
+
+          float sx = s.x / (s.x + s.y);
+          float sy = s.z / (s.z + s.w);
+
+          return mix(mix(sample3, sample2, sx), mix(sample1, sample0, sx), sy);
+        }
+
+        vec3 applyCAS(sampler2D tex, vec2 uv, vec2 texelSize, float sharpness) {
+          vec3 b = texture2D(tex, uv + vec2(0.0, -texelSize.y)).rgb;
+          vec3 d = texture2D(tex, uv + vec2(-texelSize.x, 0.0)).rgb;
+          vec3 e = texture2D(tex, uv).rgb;
+          vec3 f = texture2D(tex, uv + vec2(texelSize.x, 0.0)).rgb;
+          vec3 h = texture2D(tex, uv + vec2(0.0, texelSize.y)).rgb;
+
+          vec3 minRGB = min(min(min(d, e), min(f, b)), h);
+          vec3 maxRGB = max(max(max(d, e), max(f, b)), h);
+
+          vec3 amp = clamp(min(minRGB, 1.0 - maxRGB) / (maxRGB + 0.0001), 0.0, 1.0);
+          vec3 w = sqrt(amp) * (-sharpness);
+
+          return clamp((b * w + d * w + f * w + h * w + e) / (1.0 + 4.0 * w), 0.0, 1.0);
+        }
+
+        vec3 applyBilateralDenoise(sampler2D tex, vec2 uv, vec2 texelSize, float strength, float threshold) {
+          vec3 centerColor = texture2D(tex, uv).rgb;
+          vec3 totalColor = centerColor;
+          float totalWeight = 1.0;
+
+          for (int x = -1; x <= 1; x++) {
+            for (int y = -1; y <= 1; y++) {
+              if (x == 0 && y == 0) continue;
+              vec2 offset = vec2(float(x), float(y)) * texelSize;
+              vec3 sampleColor = texture2D(tex, uv + offset).rgb;
+
+              float spatialWeight = exp(-float(x*x + y*y) / 2.0);
+              float colorDiff = length(centerColor - sampleColor);
+              float colorWeight = exp(-(colorDiff * colorDiff) / (2.0 * threshold * threshold));
+
+              float weight = spatialWeight * colorWeight * strength;
+              totalColor += sampleColor * weight;
+              totalWeight += weight;
+            }
+          }
+
+          return totalColor / totalWeight;
+        }
+
+        void main() {
+          vec2 uv = v_uv;
+
+          if (uv.x < 0.0 || uv.x > 1.0 || uv.y < 0.0 || uv.y > 1.0) {
+            gl_FragColor = vec4(0.0, 0.0, 0.0, 1.0);
+            return;
+          }
+
+          vec2 texelSize = 1.0 / u_resolution;
+
+          if (uv.x < u_split_pos) {
+            gl_FragColor = texture2D(u_texture, uv);
+            return;
+          }
+
+          vec3 color = textureBicubic(u_texture, uv).rgb;
+
+          if (u_denoise_enabled) {
+            color = applyBilateralDenoise(u_texture, uv, texelSize, u_denoise_strength, u_denoise_threshold);
+          }
+
+          if (u_cas_enabled) {
+            color = applyCAS(u_texture, uv, texelSize, u_cas_sharpness);
+          }
+
+          color = mix(vec3(0.5), color, u_contrast);
+          float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+          color = mix(vec3(luma), color, u_vibrance);
+
+          gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+        }
+      `;
+
+      customPassMaterial = new THREE.ShaderMaterial({
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader,
+        uniforms: {
+          u_texture: { value: mediaTexture },
+          u_resolution: { value: new THREE.Vector2(1280, 720) },
+          u_split_pos: { value: state.splitPos },
+          u_uv_scale: { value: new THREE.Vector2(1.0, 1.0) },
+          u_cas_enabled: { value: state.casEnabled },
+          u_cas_sharpness: { value: state.casSharpness },
+          u_denoise_enabled: { value: state.denoiseEnabled },
+          u_denoise_strength: { value: state.denoiseStrength },
+          u_denoise_threshold: { value: state.denoiseThreshold },
+          u_contrast: { value: state.contrast },
+          u_vibrance: { value: state.vibrance }
+        }
+      });
+
+      quadMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), customPassMaterial);
+      scene.add(quadMesh);
+
+      onWindowResize();
+      window.addEventListener('resize', () => {
+        checkDeviceType();
+        onWindowResize();
+      });
+
+      logToTerminal("Three.js WebGL Engine Initialized.", "success");
+    }
+
+    // --- ADAPTIVE SCREEN-FIT CANVAS RESIZER ---
+    function onWindowResize() {
+      if (state.isExporting) return;
+
+      const containerW = viewportContainer.clientWidth - 16;
+      const containerH = viewportContainer.clientHeight - 16;
+
+      let targetAspect = 16 / 9;
+      if (state.aspectRatio === '16:9') targetAspect = 16 / 9;
+      else if (state.aspectRatio === '9:16') targetAspect = 9 / 16;
+      else if (state.aspectRatio === '1:1') targetAspect = 1.0;
+      else if (state.aspectRatio === '4:3') targetAspect = 4 / 3;
+      else if (state.aspectRatio === '21:9') targetAspect = 21 / 9;
+      else if (state.aspectRatio === 'original') {
+        if (state.mediaType === 'video' && videoElement.videoWidth) {
+          targetAspect = videoElement.videoWidth / videoElement.videoHeight;
+        } else if (state.mediaType === 'image' && imageElement.width) {
+          targetAspect = imageElement.width / imageElement.height;
+        }
+      }
+
+      let renderW = containerW;
+      let renderH = containerW / targetAspect;
+
+      if (renderH > containerH) {
+        renderH = containerH;
+        renderW = containerH * targetAspect;
+      }
+
+      canvasAspectWrapper.style.width = `${Math.floor(renderW)}px`;
+      canvasAspectWrapper.style.height = `${Math.floor(renderH)}px`;
+
+      const dpr = Math.min(window.devicePixelRatio, 2) * state.previewScale;
+      renderer.setPixelRatio(dpr);
+      renderer.setSize(renderW, renderH);
+    }
+
+    // --- ANIMATION LOOP ---
+    let lastTime = performance.now();
+    let frameCount = 0;
+
+    function animate(currentTime) {
+      requestAnimationFrame(animate);
+
+      if (state.isExporting) return; // Skip preview loop during offline export frame steps
+
+      const startTime = performance.now();
+      frameCount++;
+      const delta = currentTime - lastTime;
+
+      if (delta >= 500) {
+        state.fps = (frameCount * 1000) / delta;
+        hdrFps.innerText = state.fps.toFixed(1);
+        frameCount = 0;
+        lastTime = currentTime;
+      }
+
+      if (state.mediaType === 'synthetic') {
+        renderSyntheticPattern();
+        if (mediaTexture) mediaTexture.needsUpdate = true;
+      } else if (state.mediaType === 'video' && !videoElement.paused) {
+        if (mediaTexture) mediaTexture.needsUpdate = true;
+        updateVideoTimeline();
+      }
+
+      customPassMaterial.uniforms.u_split_pos.value = state.splitPos;
+      renderer.render(scene, camera);
+
+      const renderDuration = performance.now() - startTime;
+      hdrRenderTime.innerText = `${renderDuration.toFixed(1)}ms`;
+    }
+
+    // --- SPLIT-SCREEN COMPARISON SLIDER ---
+    function setupSplitScreen() {
+      let isDragging = false;
+      function updateSplit(e) {
+        const rect = canvasAspectWrapper.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let x = (clientX - rect.left) / rect.width;
+        x = Math.max(0.0, Math.min(1.0, x));
+        state.splitPos = x;
+        splitDivider.style.left = `${x * 100}%`;
+      }
+
+      canvasAspectWrapper.addEventListener('mousedown', (e) => { isDragging = true; updateSplit(e); });
+      window.addEventListener('mousemove', (e) => { if (isDragging) updateSplit(e); });
+      window.addEventListener('mouseup', () => { isDragging = false; });
+
+      canvasAspectWrapper.addEventListener('touchstart', (e) => { isDragging = true; updateSplit(e); });
+      window.addEventListener('touchmove', (e) => { if (isDragging) updateSplit(e); });
+      window.addEventListener('touchend', () => { isDragging = false; });
+    }
+
+    // --- ASPECT RATIO FRAMING SHADER MATRIX ---
+    function updateAspectFraming() {
+      let mediaAspect = 16 / 9;
+      if (state.mediaType === 'video' && videoElement.videoWidth) {
+        mediaAspect = videoElement.videoWidth / videoElement.videoHeight;
+      } else if (state.mediaType === 'image' && imageElement.width) {
+        mediaAspect = imageElement.width / imageElement.height;
+      }
+
+      let targetAspect = mediaAspect;
+      if (state.aspectRatio === '16:9') targetAspect = 16 / 9;
+      else if (state.aspectRatio === '9:16') targetAspect = 9 / 16;
+      else if (state.aspectRatio === '1:1') targetAspect = 1.0;
+      else if (state.aspectRatio === '4:3') targetAspect = 4 / 3;
+      else if (state.aspectRatio === '21:9') targetAspect = 21 / 9;
+
+      let scaleX = 1.0;
+      let scaleY = 1.0;
+
+      if (mediaAspect > targetAspect) scaleX = targetAspect / mediaAspect;
+      else scaleY = mediaAspect / targetAspect;
+
+      customPassMaterial.uniforms.u_uv_scale.value.set(scaleX, scaleY);
+      onWindowResize();
+    }
+
+    // --- VIDEO TIMELINE & CONTROLS ---
+    function updateVideoTimeline() {
+      if (!videoElement.duration) return;
+      const progress = (videoElement.currentTime / videoElement.duration) * 100;
+      seekbar.value = progress;
+
+      const formatTime = (s) => {
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+      };
+      timeDisplay.innerText = `${formatTime(videoElement.currentTime)}/${formatTime(videoElement.duration)}`;
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+      if (state.mediaType !== 'video') return;
+      if (videoElement.paused) {
+        videoElement.play().then(() => {
+          btnPlayPause.innerHTML = '<i class="fa-solid fa-pause text-xs"></i>';
+        }).catch(err => logToTerminal(`Playback error: ${err.message}`, "error"));
+      } else {
+        videoElement.pause();
+        btnPlayPause.innerHTML = '<i class="fa-solid fa-play text-xs"></i>';
+      }
+    });
+
+    seekbar.addEventListener('input', () => {
+      if (state.mediaType === 'video' && videoElement.duration) {
+        videoElement.currentTime = (seekbar.value / 100) * videoElement.duration;
+      }
+    });
+
+    btnMute.addEventListener('click', () => {
+      videoElement.muted = !videoElement.muted;
+      btnMute.innerHTML = videoElement.muted ? 
+        '<i class="fa-solid fa-volume-xmark text-red-400"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+    });
+
+    audioVolume.addEventListener('input', (e) => {
+      videoElement.volume = parseFloat(e.target.value);
+      videoElement.muted = videoElement.volume === 0;
+      btnMute.innerHTML = videoElement.muted ? 
+        '<i class="fa-solid fa-volume-xmark text-red-400"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+    });
+
+    // --- MEDIA FILE IMPORT ENGINE ---
+    mediaFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const url = URL.createObjectURL(file);
+      mediaFilenameLabel.innerText = `File: ${file.name}`;
+      logToTerminal(`Importing: ${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB)`, "info");
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      const isVideo = file.type.startsWith('video/') || ['mp4', 'webm', 'mov', 'mkv', 'avi', 'ogv'].includes(ext);
+      const isImage = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'bmp'].includes(ext);
+
+      if (isVideo) {
+        state.mediaType = 'video';
+        inputTypeTag.innerText = 'VIDEO FILE';
+        videoControlsBar.classList.remove('hidden');
+
+        videoElement.src = url;
+        videoElement.load();
+
+        videoElement.onloadedmetadata = () => {
+          if (mediaTexture) mediaTexture.dispose();
+          mediaTexture = new THREE.VideoTexture(videoElement);
+          mediaTexture.minFilter = THREE.LinearFilter;
+          mediaTexture.magFilter = THREE.LinearFilter;
+          customPassMaterial.uniforms.u_texture.value = mediaTexture;
+
+          updateResolutionMetrics(videoElement.videoWidth, videoElement.videoHeight);
+          updateAspectFraming();
+          logToTerminal(`Video Stream Ready: ${videoElement.videoWidth}x${videoElement.videoHeight}px | Duration: ${videoElement.duration.toFixed(1)}s`, "success");
+          
+          videoElement.play().then(() => {
+            btnPlayPause.innerHTML = '<i class="fa-solid fa-pause text-xs"></i>';
+          }).catch(() => logToTerminal("Click play to begin video stream.", "warn"));
+        };
+
+        videoElement.onerror = () => {
+          logToTerminal(`Decoder Error: Unsupported video format .${ext}`, "error");
+        };
+
+      } else if (isImage) {
+        state.mediaType = 'image';
+        inputTypeTag.innerText = 'STATIC IMAGE';
+        videoElement.pause();
+        videoControlsBar.classList.add('hidden');
+
+        imageElement.onload = () => {
+          if (mediaTexture) mediaTexture.dispose();
+          mediaTexture = new THREE.Texture(imageElement);
+          mediaTexture.needsUpdate = true;
+          mediaTexture.minFilter = THREE.LinearFilter;
+          mediaTexture.magFilter = THREE.LinearFilter;
+          customPassMaterial.uniforms.u_texture.value = mediaTexture;
+
+          updateResolutionMetrics(imageElement.width, imageElement.height);
+          updateAspectFraming();
+          logToTerminal(`Image Loaded: ${imageElement.width}x${imageElement.height}px`, "success");
+        };
+
+        imageElement.onerror = () => {
+          logToTerminal(`Image Read Error: Unable to parse file format.`, "error");
+        };
+        imageElement.src = url;
+
+      } else {
+        logToTerminal(`Format Error: Extension .${ext} is unrecognized.`, "error");
+      }
+    });
+
+    btnSynthetic.addEventListener('click', () => {
+      state.mediaType = 'synthetic';
+      inputTypeTag.innerText = 'DEMO LOOP';
+      videoElement.pause();
+      videoControlsBar.classList.remove('hidden');
+      mediaFilenameLabel.innerText = "Loaded: Synthetic Quantum Dynamic Loop";
+
+      if (mediaTexture) mediaTexture.dispose();
+      mediaTexture = new THREE.CanvasTexture(syntheticCanvas);
+      customPassMaterial.uniforms.u_texture.value = mediaTexture;
+      updateResolutionMetrics(1280, 720);
+      updateAspectFraming();
+      logToTerminal("Switched to Synthetic Shader Pattern.", "info");
+    });
+
+    function updateResolutionMetrics(srcW, srcH) {
+      let targetH = state.isNativeRes ? srcH : state.targetHeight;
+      const targetW = Math.round(srcW * (targetH / srcH));
+      hdrRes.innerText = `${targetW}x${targetH}p`;
+    }
+
+    // Export Mode Toggle Listener
+    document.querySelectorAll('.export-mode-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.export-mode-btn').forEach(b => {
+          b.classList.remove('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+          b.classList.add('text-slate-300');
+        });
+        btn.classList.add('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+        state.exportMode = btn.dataset.mode;
+        logToTerminal(`Export Mode changed to: ${state.exportMode === 'fast' ? 'Fast Real-Time (1x)' : 'Precision Frame-by-Frame'}`, "info");
+      });
+    });
+
+    document.querySelectorAll('.export-fps-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.export-fps-btn').forEach(b => {
+          b.classList.remove('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+          b.classList.add('text-slate-300');
+        });
+        btn.classList.add('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+
+        if (btn.dataset.fps === 'native') state.exportFps = 60;
+        else state.exportFps = parseInt(btn.dataset.fps);
+
+        logToTerminal(`Export Frame Rate set to ${state.exportFps} FPS.`, "info");
+      });
+    });
+
+    document.querySelectorAll('.export-profile-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.export-profile-btn').forEach(b => {
+          b.classList.remove('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+          b.classList.add('text-slate-300');
+        });
+        btn.classList.add('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+        state.exportProfile = btn.dataset.profile;
+        logToTerminal(`Export Encoder Profile set to: ${state.exportProfile.toUpperCase()}`, "info");
+      });
+    });
+
+    // Quantum Presets Logic
+    document.getElementById('preset-cinematic').addEventListener('click', () => {
+      sliderContrast.value = 1.15; state.contrast = 1.15; customPassMaterial.uniforms.u_contrast.value = 1.15; valContrast.innerText = '1.15';
+      sliderVibrance.value = 1.20; state.vibrance = 1.20; customPassMaterial.uniforms.u_vibrance.value = 1.20; valVibrance.innerText = '1.20';
+      sliderCasSharpness.value = 0.80; state.casSharpness = 0.80; customPassMaterial.uniforms.u_cas_sharpness.value = 0.80; valCasSharpness.innerText = '0.80';
+      logToTerminal("Applied Preset: Cinematic Pop", "success");
+    });
+
+    document.getElementById('preset-anime').addEventListener('click', () => {
+      sliderCasSharpness.value = 1.30; state.casSharpness = 1.30; customPassMaterial.uniforms.u_cas_sharpness.value = 1.30; valCasSharpness.innerText = '1.30';
+      sliderDenoiseStrength.value = 0.45; state.denoiseStrength = 0.45; customPassMaterial.uniforms.u_denoise_strength.value = 0.45; valDenoiseStrength.innerText = '0.45';
+      sliderVibrance.value = 1.35; state.vibrance = 1.35; customPassMaterial.uniforms.u_vibrance.value = 1.35; valVibrance.innerText = '1.35';
+      logToTerminal("Applied Preset: Anime / Cartoon Clean", "success");
+    });
+
+    document.getElementById('preset-vintage').addEventListener('click', () => {
+      sliderDenoiseStrength.value = 0.70; state.denoiseStrength = 0.70; customPassMaterial.uniforms.u_denoise_strength.value = 0.70; valDenoiseStrength.innerText = '0.70';
+      sliderContrast.value = 1.25; state.contrast = 1.25; customPassMaterial.uniforms.u_contrast.value = 1.25; valContrast.innerText = '1.25';
+      sliderCasSharpness.value = 0.60; state.casSharpness = 0.60; customPassMaterial.uniforms.u_cas_sharpness.value = 0.60; valCasSharpness.innerText = '0.60';
+      logToTerminal("Applied Preset: Vintage Restoration", "success");
+    });
+
+    document.getElementById('preset-ultrasharp').addEventListener('click', () => {
+      sliderCasSharpness.value = 1.80; state.casSharpness = 1.80; customPassMaterial.uniforms.u_cas_sharpness.value = 1.80; valCasSharpness.innerText = '1.80';
+      sliderContrast.value = 1.10; state.contrast = 1.10; customPassMaterial.uniforms.u_contrast.value = 1.10; valContrast.innerText = '1.10';
+      logToTerminal("Applied Preset: Ultra Sharp 4K", "success");
+    });
+
+    document.querySelectorAll('.preview-scale-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.preview-scale-btn').forEach(b => {
+          b.classList.remove('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+          b.classList.add('text-slate-300');
+        });
+        btn.classList.add('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+
+        state.previewScale = parseFloat(btn.dataset.scale);
+        onWindowResize();
+        logToTerminal(`Preview downscaled to ${state.previewScale * 100}% for smooth rendering.`, "info");
+      });
+    });
+
+    document.querySelectorAll('.aspect-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.aspect-btn').forEach(b => {
+          b.classList.remove('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+          b.classList.add('text-slate-300');
+        });
+        btn.classList.add('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+
+        state.aspectRatio = btn.dataset.aspect;
+        updateAspectFraming();
+      });
+    });
+
+    document.querySelectorAll('.res-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.res-preset-btn').forEach(b => {
+          b.classList.remove('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+          b.classList.add('text-slate-300');
+        });
+        btn.classList.add('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+
+        if (btn.dataset.res === 'native') {
+          state.isNativeRes = true;
+          document.getElementById('target-res-badge').innerText = 'Source Native';
+        } else {
+          state.isNativeRes = false;
+          state.targetHeight = parseInt(btn.dataset.res);
+          let targetBitrateStr = "25M";
+          if (state.targetHeight >= 2160) targetBitrateStr = "60M";
+          document.getElementById('target-res-badge').innerText = `${state.targetHeight}p (${targetBitrateStr})`;
+        }
+
+        let curW = 1280, curH = 720;
+        if (state.mediaType === 'video') { curW = videoElement.videoWidth || 1280; curH = videoElement.videoHeight || 720; }
+        else if (state.mediaType === 'image') { curW = imageElement.width || 1280; curH = imageElement.height || 720; }
+
+        updateResolutionMetrics(curW, curH);
+      });
+    });
+
+    sliderCasSharpness.addEventListener('input', (e) => {
+      state.casSharpness = parseFloat(e.target.value);
+      valCasSharpness.innerText = state.casSharpness.toFixed(2);
+      customPassMaterial.uniforms.u_cas_sharpness.value = state.casSharpness;
+    });
+    toggleCas.addEventListener('change', (e) => {
+      state.casEnabled = e.target.checked;
+      customPassMaterial.uniforms.u_cas_enabled.value = state.casEnabled;
+    });
+
+    sliderDenoiseStrength.addEventListener('input', (e) => {
+      state.denoiseStrength = parseFloat(e.target.value);
+      valDenoiseStrength.innerText = state.denoiseStrength.toFixed(2);
+      customPassMaterial.uniforms.u_denoise_strength.value = state.denoiseStrength;
+    });
+    sliderDenoiseThreshold.addEventListener('input', (e) => {
+      state.denoiseThreshold = parseFloat(e.target.value);
+      valDenoiseThreshold.innerText = state.denoiseThreshold.toFixed(2);
+      customPassMaterial.uniforms.u_denoise_threshold.value = state.denoiseThreshold;
+    });
+    toggleDenoise.addEventListener('change', (e) => {
+      state.denoiseEnabled = e.target.checked;
+      customPassMaterial.uniforms.u_denoise_enabled.value = state.denoiseEnabled;
+    });
+
+    sliderContrast.addEventListener('input', (e) => {
+      state.contrast = parseFloat(e.target.value);
+      valContrast.innerText = state.contrast.toFixed(2);
+      customPassMaterial.uniforms.u_contrast.value = state.contrast;
+    });
+    sliderVibrance.addEventListener('input', (e) => {
+      state.vibrance = parseFloat(e.target.value);
+      valVibrance.innerText = state.vibrance.toFixed(2);
+      customPassMaterial.uniforms.u_vibrance.value = state.vibrance;
+    });
+
+    // Tab Switcher
+    const tabBtnControls = document.getElementById('tab-btn-controls');
+    const tabBtnConsole = document.getElementById('tab-btn-console');
+    const tabContentControls = document.getElementById('tab-content-controls');
+    const tabContentConsole = document.getElementById('tab-content-console');
+
+    tabBtnControls.addEventListener('click', () => {
+      tabBtnControls.className = "flex-1 py-3 text-xs font-semibold text-blue-400 border-b-2 border-blue-500 flex items-center justify-center gap-2";
+      tabBtnConsole.className = "flex-1 py-3 text-xs font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center justify-center gap-2";
+      tabContentControls.classList.remove('hidden');
+      tabContentConsole.classList.add('hidden');
+      tabContentConsole.classList.remove('flex');
+    });
+
+    tabBtnConsole.addEventListener('click', () => {
+      tabBtnConsole.className = "flex-1 py-3 text-xs font-semibold text-blue-400 border-b-2 border-blue-500 flex items-center justify-center gap-2";
+      tabBtnControls.className = "flex-1 py-3 text-xs font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center justify-center gap-2";
+      tabContentConsole.classList.remove('hidden');
+      tabContentConsole.classList.add('flex');
+      tabContentControls.classList.add('hidden');
+    });
+
+    document.getElementById('btn-copy-console').addEventListener('click', () => {
+      const logText = logHistory.join('\n');
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = logText;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextArea);
+      logToTerminal("Copied system diagnostic logs to clipboard!", "success");
+    });
+
+    document.getElementById('btn-clear-console').addEventListener('click', () => {
+      consoleLogsContainer.innerHTML = '';
+      logCount = 0;
+      consoleBadge.innerText = '0';
+      logHistory = [];
+    });
+
+    // --- ACCURATE FAST-BAKE REAL-TIME EXPORT ENGINE ---
+    btnExportMedia.addEventListener('click', () => {
+      try {
+        if (state.mediaType === 'image') exportEnhancedImage();
+        else exportOfflineVideo();
+      } catch (err) {
+        logToTerminal(`Export Initialization Exception: ${err.message}`, "error");
+      }
+    });
+
+    function exportEnhancedImage() {
+      try {
+        prepareExportEnvironment();
+        renderer.render(scene, camera);
+        
+        const exportCanvas = renderer ? renderer.domElement : document.getElementById('webgl-canvas');
+        const dataURL = exportCanvas.toDataURL('image/png');
+        const a = document.createElement('a');
+        a.href = dataURL;
+        a.download = `lumiva-enhanced-${Date.now()}.png`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        
+        restorePreviewEnvironment();
+        logToTerminal("Enhanced high-resolution image exported successfully!", "success");
+      } catch(err) {
+        logToTerminal(`Image Export Failed: ${err.message}`, "error");
+        restorePreviewEnvironment();
+      }
+    }
+
+    function prepareExportEnvironment() {
+      state.isExporting = true;
+      state.isCancelExportRequested = false;
+
+      // Lock split slider to 0.0 (100% Enhanced View)
+      customPassMaterial.uniforms.u_split_pos.value = 0.0;
+      splitDivider.style.display = 'none';
+      badgeOriginal.style.display = 'none';
+      badgeEnhanced.style.display = 'none';
+
+      // Anti-Blur Encoder Compensation
+      customPassMaterial.uniforms.u_cas_sharpness.value = Math.min(2.0, state.casSharpness * 1.25);
+
+      let srcW = 1280, srcH = 720;
+      if (state.mediaType === 'video') { srcW = videoElement.videoWidth || 1280; srcH = videoElement.videoHeight || 720; }
+      else if (state.mediaType === 'image') { srcW = imageElement.width || 1280; srcH = imageElement.height || 720; }
+
+      let renderH = state.isNativeRes ? srcH : state.targetHeight;
+      let renderW = Math.round(srcW * (renderH / srcH));
+
+      renderer.setPixelRatio(1.0);
+      renderer.setSize(renderW, renderH);
+
+      if (state.mediaType === 'video') {
+        videoElement.pause();
+        btnPlayPause.innerHTML = '<i class="fa-solid fa-play text-xs"></i>';
+      }
+    }
+
+    function restorePreviewEnvironment() {
+      state.isExporting = false;
+
+      // Restore user CAS sharpness setting
+      customPassMaterial.uniforms.u_cas_sharpness.value = state.casSharpness;
+
+      customPassMaterial.uniforms.u_split_pos.value = state.splitPos;
+      splitDivider.style.display = 'flex';
+      badgeOriginal.style.display = 'flex';
+      badgeEnhanced.style.display = 'flex';
+
+      onWindowResize();
+    }
+
+    async function exportOfflineVideo() {
+      if (typeof MediaRecorder === 'undefined') {
+        logToTerminal("MediaRecorder API is unsupported on this browser.", "error");
+        return;
+      }
+
+      prepareExportEnvironment();
+      exportModal.classList.remove('hidden');
+      exportProgressBar.style.width = "0%";
+      exportPercentText.innerText = "0%";
+      document.getElementById('export-status-text').innerText = "Initializing...";
+      document.getElementById('export-eta-text').innerText = "Calculating...";
+
+      const wasLooping = videoElement.loop;
+      videoElement.loop = false;
+
+      const targetFps = state.exportFps || 60;
+      let duration = 10;
+      if (state.mediaType === 'video' && videoElement.duration && !isNaN(videoElement.duration)) {
+        duration = videoElement.duration;
+      }
+      const totalFrames = Math.max(1, Math.ceil(duration * targetFps));
+
+      // Optimized Bitrates for Hardware Encoder Speed
+      let targetBitrate = 25000000; // 25 Mbps
+      if (state.exportProfile === 'ultra') {
+        targetBitrate = state.targetHeight >= 2160 ? 50000000 : 35000000;
+      } else if (state.exportProfile === 'fast') {
+        targetBitrate = 12000000;
+      }
+
+      logToTerminal(`Starting Video Export (${totalFrames} frames @ ${targetFps} FPS, ${(targetBitrate/1000000).toFixed(0)} Mbps)`, "info");
+
+      // Setup Stream & Tracks safely (Retrieving the canvas element correctly)
+      let canvasStream;
+      const exportCanvas = renderer ? renderer.domElement : document.getElementById('webgl-canvas');
+      try {
+        canvasStream = exportCanvas.captureStream(targetFps);
+      } catch (err) {
+        logToTerminal(`Stream Error: ${err.message}`, "error");
+        restorePreviewEnvironment();
+        exportModal.classList.add('hidden');
+        return;
+      }
+
+      let combinedStream = new MediaStream(canvasStream.getVideoTracks());
+
+      if (state.mediaType === 'video') {
+        try {
+          if (videoElement.captureStream) {
+            const audioTracks = videoElement.captureStream().getAudioTracks();
+            if (audioTracks.length > 0) {
+              combinedStream.addTrack(audioTracks[0]);
+              logToTerminal("Synchronized audio track attached to export stream.", "success");
+            }
+          } else if (videoElement.mozCaptureStream) {
+            const audioTracks = videoElement.mozCaptureStream().getAudioTracks();
+            if (audioTracks.length > 0) combinedStream.addTrack(audioTracks[0]);
+          }
+        } catch (e) {
+          logToTerminal(`Audio Track Note: ${e.message}`, "warn");
+        }
+      }
+
+      let mimeType = 'video/webm;codecs=vp9,opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm;codecs=vp8';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/webm';
+      if (!MediaRecorder.isTypeSupported(mimeType)) mimeType = 'video/mp4';
+
+      let recordedChunks = [];
+      let mediaRecorder;
+
+      try {
+        mediaRecorder = new MediaRecorder(combinedStream, {
+          mimeType: mimeType,
+          videoBitsPerSecond: targetBitrate
+        });
+      } catch (e) {
+        logToTerminal(`Encoder Fallback initialized: ${e.message}`, "warn");
+        try {
+          mediaRecorder = new MediaRecorder(combinedStream);
+        } catch(err2) {
+          logToTerminal(`Fatal Encoder Error: ${err2.message}`, "error");
+          exportModal.classList.add('hidden');
+          videoElement.loop = wasLooping;
+          restorePreviewEnvironment();
+          return;
+        }
+      }
+
+      mediaRecorder.onerror = (event) => {
+        logToTerminal(`MediaRecorder System Error: ${event.error ? event.error.name : 'Unknown Error'}`, "error");
+      };
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data && e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        videoElement.loop = wasLooping;
+        if (state.isCancelExportRequested) {
+          logToTerminal("Export canceled by user.", "warn");
+          return;
+        }
+
+        if (recordedChunks.length === 0) {
+          logToTerminal("Export Failed: No recorded frames were captured.", "error");
+          exportModal.classList.add('hidden');
+          restorePreviewEnvironment();
+          return;
+        }
+
+        const blob = new Blob(recordedChunks, { type: mimeType.split(';')[0] });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.style.display = 'none';
+        a.href = url;
+        a.download = `lumiva-enhanced-${Date.now()}.${mimeType.includes('mp4') ? 'mp4' : 'webm'}`;
+        document.body.appendChild(a);
+        a.click();
+
+        setTimeout(() => {
+          document.body.removeChild(a);
+          URL.revokeObjectURL(url);
+        }, 1000);
+
+        exportModal.classList.add('hidden');
+        restorePreviewEnvironment();
+        logToTerminal(`Export Completed Successfully! File Size: ${(blob.size / (1024*1024)).toFixed(2)} MB`, "success");
+      };
+
+      mediaRecorder.start(100);
+      const exportStartTime = performance.now();
+
+      if (state.mediaType === 'video') {
+        videoElement.currentTime = 0;
+        videoElement.playbackRate = 1.0;
+        
+        try {
+          await videoElement.play();
+        } catch(err) {
+          logToTerminal(`Playback warning during start: ${err.message}`, "warn");
+        }
+
+        let exportLoopActive = true;
+
+        const renderExportFrame = () => {
+          if (!exportLoopActive || state.isCancelExportRequested) return;
+
+          if (mediaTexture) mediaTexture.needsUpdate = true;
+          customPassMaterial.uniforms.u_split_pos.value = 0.0;
+          renderer.render(scene, camera);
+
+          const currentTime = videoElement.currentTime || 0;
+          const currentFrame = Math.min(totalFrames, Math.floor((currentTime / duration) * totalFrames));
+          const percent = Math.min(100, Math.floor((currentTime / duration) * 100));
+
+          const elapsedSec = (performance.now() - exportStartTime) / 1000;
+          const renderFps = elapsedSec > 0 ? (currentFrame / elapsedSec).toFixed(1) : '0';
+          const remainingSec = Math.max(0, Math.ceil(duration - currentTime));
+
+          exportProgressBar.style.width = `${percent}%`;
+          exportPercentText.innerText = `${percent}%`;
+          document.getElementById('export-status-text').innerText = `Frame ${currentFrame} / ${totalFrames}`;
+          document.getElementById('export-eta-text').innerText = `${remainingSec}s`;
+          document.getElementById('export-speed-text').innerText = `${renderFps} FPS`;
+
+          if (videoElement.ended || currentTime >= (duration - 0.05)) {
+            exportLoopActive = false;
+            videoElement.pause();
+            exportProgressBar.style.width = "100%";
+            exportPercentText.innerText = "100%";
+            
+            setTimeout(() => {
+              if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+                mediaRecorder.stop();
+              }
+            }, 300);
+          } else {
+            requestAnimationFrame(renderExportFrame);
+          }
+        };
+
+        requestAnimationFrame(renderExportFrame);
+
+      } else {
+        // Synthetic / Frame Stepping Safety
+        for (let frameIndex = 0; frameIndex < totalFrames; frameIndex++) {
+          if (state.isCancelExportRequested) break;
+
+          if (state.mediaType === 'synthetic') {
+            renderSyntheticPattern();
+            if (mediaTexture) mediaTexture.needsUpdate = true;
+          }
+
+          customPassMaterial.uniforms.u_split_pos.value = 0.0;
+          renderer.render(scene, camera);
+
+          const percent = Math.min(100, Math.floor(((frameIndex + 1) / totalFrames) * 100));
+          const elapsedSec = (performance.now() - exportStartTime) / 1000;
+          const currentRenderFps = elapsedSec > 0 ? ((frameIndex + 1) / elapsedSec) : 0;
+          const remainingFrames = totalFrames - (frameIndex + 1);
+          const remainingSec = currentRenderFps > 0 ? Math.ceil(remainingFrames / currentRenderFps) : 0;
+
+          exportProgressBar.style.width = `${percent}%`;
+          exportPercentText.innerText = `${percent}%`;
+          document.getElementById('export-status-text').innerText = `Frame ${frameIndex + 1} / ${totalFrames}`;
+          document.getElementById('export-eta-text').innerText = `${remainingSec}s`;
+          document.getElementById('export-speed-text').innerText = `${currentRenderFps.toFixed(1)} FPS`;
+
+          await new Promise(r => setTimeout(r, 1000 / targetFps));
+        }
+
+        if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+          mediaRecorder.stop();
+        }
+      }
+    }
+
+    btnCancelExport.addEventListener('click', () => {
+      state.isCancelExportRequested = true;
+      exportModal.classList.add('hidden');
+      restorePreviewEnvironment();
+      logToTerminal("Export process canceled by user.", "warn");
+    });
+
+    // --- INITIALIZE ON PAGE LOAD WITH SYNTAX DIAGNOSTICS ---
+    window.onload = () => {
+      try {
+        checkDeviceType();
+        initThree();
+        setupSplitScreen();
+        animate(0);
+        logToTerminal("Lumiva Quantum Engine ready. Direct-stream fast capture online.", "info");
+      } catch (err) {
+        logToTerminal(`Engine Startup Error: ${err.message}`, "error");
+      }
+    };
+  </script>
+</body>
+</html>

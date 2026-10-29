@@ -1,0 +1,1231 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Quantum WebGL Video & Image Quality Engine</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js Library -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500;600&display=swap');
+    
+    body {
+      font-family: 'Inter', sans-serif;
+      background-color: #07090e;
+      color: #f3f4f6;
+    }
+
+    .font-mono {
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(59, 130, 246, 0.3);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(59, 130, 246, 0.6);
+    }
+
+    /* Glassmorphism styling */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glass-button {
+      background: rgba(30, 41, 59, 0.6);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.2s ease;
+    }
+    .glass-button:hover {
+      background: rgba(59, 130, 246, 0.25);
+      border-color: rgba(96, 165, 250, 0.5);
+    }
+
+    /* Custom Input Range Sliders */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 5px;
+      cursor: pointer;
+      background: #1e293b;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    input[type=range]::-webkit-slider-thumb {
+      height: 15px;
+      width: 15px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -5px;
+      box-shadow: 0 0 8px rgba(59, 130, 246, 0.6);
+    }
+
+    #split-divider {
+      box-shadow: 0 0 15px rgba(59, 130, 246, 0.8), 0 0 30px rgba(0,0,0,0.9);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen overflow-hidden flex flex-col bg-slate-950 text-slate-100">
+
+  <!-- TOP APP HEADER -->
+  <header class="h-14 border-b border-slate-800/80 glass-panel px-6 flex items-center justify-between shrink-0 z-40">
+    <div class="flex items-center gap-3">
+      <div class="w-9 h-9 rounded-xl bg-gradient-to-tr from-blue-600 to-indigo-500 flex items-center justify-center shadow-lg shadow-blue-500/20 text-white">
+        <i class="fa-solid fa-wand-magic-sparkles text-lg"></i>
+      </div>
+      <div>
+        <h1 class="text-sm font-bold tracking-wide text-slate-100 flex items-center gap-2">
+          QUANTUM WEBGL ENHANCER
+          <span class="text-[10px] px-2 py-0.5 rounded-full bg-blue-500/20 text-blue-400 border border-blue-500/30 font-mono">v2.0 PRO</span>
+        </h1>
+        <p class="text-[11px] text-slate-400">Real-Time Spatial Upscaling, Sharpening & Denoising Engine</p>
+      </div>
+    </div>
+
+    <!-- Header Quick Actions -->
+    <div class="flex items-center gap-3">
+      <div class="hidden md:flex items-center gap-4 text-xs font-mono text-slate-400 mr-4 border-r border-slate-800 pr-4">
+        <span>FPS: <strong id="hdr-fps" class="text-emerald-400">60.0</strong></span>
+        <span>RES: <strong id="hdr-res" class="text-blue-400">1280x720</strong></span>
+      </div>
+
+      <button id="btn-export-media" class="px-4 py-2 rounded-xl bg-blue-600 hover:bg-blue-500 text-white text-xs font-semibold flex items-center gap-2 shadow-lg shadow-blue-600/30 transition-all hover:scale-105">
+        <i class="fa-solid fa-file-export"></i> Export Output
+      </button>
+    </div>
+  </header>
+
+  <!-- MAIN APP CONTAINER -->
+  <div class="flex-1 flex flex-col md:flex-row overflow-hidden relative">
+
+    <!-- LEFT / MAIN VIEWPORT (CANVAS & HUD) -->
+    <div id="viewport-container" class="flex-1 h-full relative bg-slate-950 flex flex-col items-center justify-center overflow-hidden">
+      
+      <!-- Three.js WebGL Canvas -->
+      <canvas id="webgl-canvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+      <!-- Split-Screen Interactive Divider Line -->
+      <div id="split-divider" class="absolute top-0 bottom-0 w-1 bg-blue-500 cursor-ew-resize z-20 pointer-events-none flex items-center justify-center" style="left: 50%;">
+        <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg text-xs font-bold border border-blue-300 pointer-events-auto hover:scale-110 transition-transform">
+          <i class="fa-solid fa-arrows-left-right"></i>
+        </div>
+      </div>
+
+      <!-- Comparison Badges -->
+      <div class="absolute top-4 left-4 z-10 flex gap-2 pointer-events-none">
+        <span class="px-3 py-1 rounded-lg text-xs font-semibold bg-slate-900/80 text-slate-300 border border-slate-700/60 backdrop-blur-md">
+          <i class="fa-solid fa-eye-slash text-slate-400 mr-1.5"></i> ORIGINAL
+        </span>
+      </div>
+      <div class="absolute top-4 right-4 z-10 flex gap-2 pointer-events-none">
+        <span class="px-3 py-1 rounded-lg text-xs font-semibold bg-blue-950/80 text-blue-300 border border-blue-800/60 backdrop-blur-md shadow-lg flex items-center">
+          <i class="fa-solid fa-wand-magic-sparkles text-blue-400 mr-1.5"></i> ENHANCED
+        </span>
+      </div>
+
+      <!-- VIDEO PLAYBACK & AUDIO CONTROLLER OVERLAY -->
+      <div id="video-controls-bar" class="absolute bottom-6 left-1/2 -translate-x-1/2 z-20 glass-panel px-5 py-2.5 rounded-2xl flex items-center gap-4 border border-slate-700/60 shadow-2xl max-w-2xl w-[90%] transition-opacity">
+        <button id="btn-play-pause" class="text-slate-200 hover:text-blue-400 transition-colors w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80 border border-slate-700">
+          <i class="fa-solid fa-play"></i>
+        </button>
+        
+        <span id="time-display" class="text-[11px] font-mono text-slate-300 min-w-[90px]">00:00 / 00:00</span>
+        
+        <!-- Seekbar -->
+        <input id="video-seekbar" type="range" min="0" max="100" value="0" class="flex-1 accent-blue-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+        
+        <!-- Audio Mute / Unmute & Volume Slider -->
+        <div class="flex items-center gap-2 border-l border-slate-800 pl-3">
+          <button id="btn-mute" class="text-slate-300 hover:text-blue-400 text-xs p-1">
+            <i class="fa-solid fa-volume-high"></i>
+          </button>
+          <input id="audio-volume" type="range" min="0" max="1" step="0.05" value="1" class="w-16 accent-blue-500 h-1.5 bg-slate-800 rounded-lg cursor-pointer">
+        </div>
+
+        <!-- Fullscreen -->
+        <button id="btn-fullscreen" class="text-slate-400 hover:text-blue-400 text-xs p-1 ml-1">
+          <i class="fa-solid fa-expand"></i>
+        </button>
+      </div>
+
+    </div>
+
+    <!-- RIGHT / CONTROLS & DIAGNOSTIC PANEL -->
+    <div class="w-full md:w-96 glass-panel h-full z-30 flex flex-col border-l border-slate-800/80 shrink-0 overflow-hidden">
+      
+      <!-- Panel Tab Bar -->
+      <div class="flex border-b border-slate-800/80 bg-slate-900/50">
+        <button id="tab-btn-controls" class="flex-1 py-3 text-xs font-semibold text-blue-400 border-b-2 border-blue-500 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-sliders"></i> Controls
+        </button>
+        <button id="tab-btn-console" class="flex-1 py-3 text-xs font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center justify-center gap-2">
+          <i class="fa-solid fa-terminal"></i> Terminal <span id="console-badge" class="px-1.5 py-0.2 text-[9px] rounded-full bg-slate-800 text-slate-400 font-mono">0</span>
+        </button>
+      </div>
+
+      <!-- CONTROLS TAB CONTENT -->
+      <div id="tab-content-controls" class="flex-1 overflow-y-auto p-5 space-y-6">
+
+        <!-- Media Input Selector -->
+        <div class="space-y-3">
+          <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center justify-between">
+            <span><i class="fa-solid fa-folder-open text-blue-400 mr-1.5"></i> Media Input</span>
+            <span id="input-type-tag" class="text-[10px] text-purple-400 font-mono font-normal">SYNTHETIC</span>
+          </label>
+          
+          <div class="grid grid-cols-2 gap-2">
+            <label class="glass-button p-3 rounded-xl cursor-pointer text-center text-xs flex flex-col items-center justify-center gap-1.5 hover:border-blue-500/50">
+              <i class="fa-solid fa-file-arrow-up text-blue-400 text-base"></i>
+              <span class="text-slate-200 font-medium">Open File</span>
+              <span class="text-[9px] text-slate-400">Video or Image</span>
+              <input type="file" id="media-file-input" accept="video/*,image/*,.mp4,.webm,.mov,.mkv,.avi,.ogv,.png,.jpg,.jpeg,.webp,.bmp" class="hidden">
+            </label>
+            
+            <button id="btn-synthetic-preset" class="glass-button p-3 rounded-xl text-xs flex flex-col items-center justify-center gap-1.5 border-blue-500/30">
+              <i class="fa-solid fa-film text-purple-400 text-base"></i>
+              <span class="text-slate-200 font-medium">Demo Video</span>
+              <span class="text-[9px] text-slate-400">Benchmark Pattern</span>
+            </button>
+          </div>
+          <p id="media-filename-label" class="text-[10px] text-slate-400 truncate text-center italic bg-slate-900/60 p-2 rounded-lg border border-slate-800">
+            Loaded: Synthetic Dynamic Pattern
+          </p>
+        </div>
+
+        <!-- Target Upscale Preset -->
+        <div class="space-y-3 border-t border-slate-800/80 pt-4">
+          <div class="flex justify-between items-center">
+            <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-expand text-blue-400"></i> Target Resolution
+            </label>
+            <span id="target-res-badge" class="text-[10px] bg-blue-950 text-blue-300 border border-blue-800/60 px-2 py-0.5 rounded font-mono">1080p</span>
+          </div>
+
+          <div class="grid grid-cols-4 gap-1.5">
+            <button class="res-preset-btn glass-button py-2 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="240">240p</button>
+            <button class="res-preset-btn glass-button py-2 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="480">480p</button>
+            <button class="res-preset-btn glass-button py-2 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="720">720p</button>
+            <button class="res-preset-btn glass-button py-2 rounded-lg text-xs font-mono bg-blue-600/30 text-blue-300 border-blue-500/50" data-res="1080">1080p</button>
+            <button class="res-preset-btn glass-button py-2 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="1440">1440p</button>
+            <button class="res-preset-btn glass-button py-2 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="2048">2K</button>
+            <button class="res-preset-btn glass-button py-2 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="3840">4K</button>
+            <button class="res-preset-btn glass-button py-2 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="native">Native</button>
+          </div>
+        </div>
+
+        <!-- FidelityFX CAS Sharpening Engine -->
+        <div class="space-y-3 border-t border-slate-800/80 pt-4">
+          <div class="flex justify-between items-center">
+            <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-bolt text-amber-400"></i> CAS Adaptive Sharpen
+            </label>
+            <input type="checkbox" id="toggle-cas" class="accent-blue-500 w-4 h-4 cursor-pointer" checked>
+          </div>
+          
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Sharpness Intensity</span>
+              <span id="val-cas-sharpness" class="font-mono text-blue-400">0.80</span>
+            </div>
+            <input id="slider-cas-sharpness" type="range" min="0.0" max="2.0" step="0.05" value="0.80" class="w-full">
+          </div>
+        </div>
+
+        <!-- Bilateral Edge Denoising -->
+        <div class="space-y-3 border-t border-slate-800/80 pt-4">
+          <div class="flex justify-between items-center">
+            <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+              <i class="fa-solid fa-filter text-emerald-400"></i> Bilateral Edge Denoise
+            </label>
+            <input type="checkbox" id="toggle-denoise" class="accent-blue-500 w-4 h-4 cursor-pointer" checked>
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Denoise Strength</span>
+              <span id="val-denoise-strength" class="font-mono text-blue-400">0.35</span>
+            </div>
+            <input id="slider-denoise-strength" type="range" min="0.0" max="1.0" step="0.02" value="0.35" class="w-full">
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Edge Sensitivity</span>
+              <span id="val-denoise-threshold" class="font-mono text-blue-400">0.12</span>
+            </div>
+            <input id="slider-denoise-threshold" type="range" min="0.01" max="0.5" step="0.01" value="0.12" class="w-full">
+          </div>
+        </div>
+
+        <!-- Color Dynamics & Vibrance -->
+        <div class="space-y-3 border-t border-slate-800/80 pt-4">
+          <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-circle-half-stroke text-purple-400"></i> Color & Dynamic Range
+          </label>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Contrast Boost</span>
+              <span id="val-contrast" class="font-mono text-blue-400">1.12</span>
+            </div>
+            <input id="slider-contrast" type="range" min="0.8" max="1.8" step="0.02" value="1.12" class="w-full">
+          </div>
+
+          <div class="space-y-1">
+            <div class="flex justify-between text-[11px] text-slate-400">
+              <span>Color Vibrance</span>
+              <span id="val-vibrance" class="font-mono text-blue-400">1.18</span>
+            </div>
+            <input id="slider-vibrance" type="range" min="0.5" max="2.0" step="0.05" value="1.18" class="w-full">
+          </div>
+        </div>
+
+        <!-- Spatial Interpolation Algorithm -->
+        <div class="space-y-2 border-t border-slate-800/80 pt-4 mb-4">
+          <label class="text-xs font-bold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-sliders text-cyan-400"></i> Interpolation Sampler
+          </label>
+          <select id="select-interpolation" class="w-full bg-slate-900 border border-slate-700 text-xs rounded-lg p-2.5 text-slate-200 focus:outline-none focus:border-blue-500">
+            <option value="bicubic" selected>Catmull-Rom Bicubic Sampler</option>
+            <option value="bilinear">Standard Bilinear Filtering</option>
+            <option value="nearest">Nearest Neighbor (Pixelated)</option>
+          </select>
+        </div>
+
+      </div>
+
+      <!-- DIAGNOSTIC CONSOLE TAB CONTENT -->
+      <div id="tab-content-console" class="flex-1 flex-col overflow-hidden hidden bg-slate-950">
+        
+        <!-- Console Toolbar -->
+        <div class="p-3 border-b border-slate-800/80 bg-slate-900/60 flex items-center justify-between shrink-0">
+          <span class="text-[11px] font-mono text-slate-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-terminal text-blue-400"></i> System Diagnostic Output
+          </span>
+          
+          <div class="flex items-center gap-2">
+            <button id="btn-copy-console" title="Copy Console Logs" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-blue-600/40 text-blue-400 text-xs font-medium border border-slate-700 flex items-center gap-1.5 transition-colors">
+              <i class="fa-solid fa-copy"></i> Copy Logs
+            </button>
+            <button id="btn-clear-console" title="Clear Console" class="px-2.5 py-1 rounded bg-slate-800 hover:bg-red-600/40 text-slate-400 hover:text-red-300 text-xs border border-slate-700">
+              <i class="fa-solid fa-trash"></i>
+            </button>
+          </div>
+        </div>
+
+        <!-- Console Log Stream Box -->
+        <div id="console-logs-container" class="flex-1 p-3 font-mono text-[11px] overflow-y-auto space-y-1.5 select-text">
+          <div class="text-slate-500 italic">[00:00:00] Initializing WebGL Diagnostic Terminal...</div>
+        </div>
+
+      </div>
+
+      <!-- Panel Footer -->
+      <div class="p-3 border-t border-slate-800 bg-slate-950/80 text-[10px] font-mono text-slate-400 flex items-center justify-between shrink-0">
+        <span class="flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-emerald-500 animate-pulse"></span>
+          Pipeline Ready
+        </span>
+        <span class="text-slate-500">WebGL 2.0 active</span>
+      </div>
+
+    </div>
+
+  </div>
+
+  <!-- EXPORT PROGRESS MODAL OVERLAY -->
+  <div id="export-modal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-md z-50 flex items-center justify-center hidden">
+    <div class="glass-panel p-6 rounded-2xl border border-slate-700 max-w-md w-[90%] shadow-2xl space-y-4 text-center">
+      <div class="w-12 h-12 rounded-full bg-blue-600/20 border border-blue-500/40 text-blue-400 flex items-center justify-center mx-auto text-xl">
+        <i id="export-spinner" class="fa-solid fa-circle-notch animate-spin"></i>
+      </div>
+
+      <div>
+        <h3 id="export-modal-title" class="text-base font-bold text-slate-100">Recording & Exporting Media</h3>
+        <p id="export-modal-desc" class="text-xs text-slate-400 mt-1">Rendering WebGL pass & encoding audio stream...</p>
+      </div>
+
+      <!-- Progress Bar -->
+      <div class="w-full bg-slate-800 h-2 rounded-full overflow-hidden border border-slate-700">
+        <div id="export-progress-bar" class="bg-blue-500 h-full w-0 transition-all duration-200"></div>
+      </div>
+
+      <div class="flex justify-between items-center text-xs font-mono text-slate-400">
+        <span id="export-status-text">Processing...</span>
+        <span id="export-percent-text">0%</span>
+      </div>
+
+      <button id="btn-cancel-export" class="px-4 py-2 rounded-xl bg-slate-800 hover:bg-slate-700 text-xs text-slate-300 font-medium border border-slate-700 transition-colors w-full">
+        Cancel Export
+      </button>
+    </div>
+  </div>
+
+  <!-- APPLICATION LOGIC & WEBGL PIPELINE -->
+  <script>
+    // --- CONSOLE & DIAGNOSTICS SYSTEM ---
+    const consoleLogsContainer = document.getElementById('console-logs-container');
+    const consoleBadge = document.getElementById('console-badge');
+    let logCount = 0;
+    let logHistory = [];
+
+    function logToTerminal(message, type = 'info') {
+      logCount++;
+      consoleBadge.innerText = logCount;
+
+      const timeStr = new Date().toLocaleTimeString();
+      let colorClass = 'text-slate-300';
+      let icon = '<i class="fa-solid fa-info text-blue-400"></i>';
+
+      if (type === 'error') {
+        colorClass = 'text-red-400 bg-red-950/30 p-1 rounded border border-red-900/50';
+        icon = '<i class="fa-solid fa-triangle-exclamation text-red-400"></i>';
+      } else if (type === 'warn') {
+        colorClass = 'text-amber-300';
+        icon = '<i class="fa-solid fa-circle-exclamation text-amber-400"></i>';
+      } else if (type === 'success') {
+        colorClass = 'text-emerald-400';
+        icon = '<i class="fa-solid fa-check text-emerald-400"></i>';
+      }
+
+      const logLine = `[${timeStr}] ${message}`;
+      logHistory.push(logLine);
+
+      const div = document.createElement('div');
+      div.className = `flex items-start gap-2 ${colorClass}`;
+      div.innerHTML = `<span class="shrink-0 text-slate-500">${icon}</span> <span>${message}</span>`;
+      
+      consoleLogsContainer.appendChild(div);
+      consoleLogsContainer.scrollTop = consoleLogsContainer.scrollHeight;
+    }
+
+    // Capture global syntax & runtime errors
+    window.onerror = function(msg, url, lineNo, columnNo, error) {
+      logToTerminal(`System Error: ${msg} (Line ${lineNo}:${columnNo})`, 'error');
+      return false;
+    };
+
+    window.onunhandledrejection = function(event) {
+      logToTerminal(`Unhandled Promise Rejection: ${event.reason}`, 'error');
+    };
+
+    // --- PIPELINE STATE & PARAMETERS ---
+    const state = {
+      splitPos: 0.5,
+      targetHeight: 1080,
+      isNativeRes: false,
+      casEnabled: true,
+      casSharpness: 0.80,
+      denoiseEnabled: true,
+      denoiseStrength: 0.35,
+      denoiseThreshold: 0.12,
+      contrast: 1.12,
+      vibrance: 1.18,
+      interpolationMode: 0,
+      mediaType: 'synthetic', // 'synthetic', 'video', 'image'
+      fps: 60,
+      frameTime: 16.6,
+      isRecording: false
+    };
+
+    // --- DOM REFERENCES ---
+    const canvas = document.getElementById('webgl-canvas');
+    const viewportContainer = document.getElementById('viewport-container');
+    const splitDivider = document.getElementById('split-divider');
+    const mediaFileInput = document.getElementById('media-file-input');
+    const btnSynthetic = document.getElementById('btn-synthetic-preset');
+    const mediaFilenameLabel = document.getElementById('media-filename-label');
+    const inputTypeTag = document.getElementById('input-type-tag');
+
+    // Video Controls DOM
+    const videoControlsBar = document.getElementById('video-controls-bar');
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const seekbar = document.getElementById('video-seekbar');
+    const timeDisplay = document.getElementById('time-display');
+    const btnMute = document.getElementById('btn-mute');
+    const audioVolume = document.getElementById('audio-volume');
+    const btnFullscreen = document.getElementById('btn-fullscreen');
+
+    // Telemetry DOM
+    const hdrFps = document.getElementById('hdr-fps');
+    const hdrRes = document.getElementById('hdr-res');
+
+    // Control Elements DOM
+    const sliderCasSharpness = document.getElementById('slider-cas-sharpness');
+    const valCasSharpness = document.getElementById('val-cas-sharpness');
+    const toggleCas = document.getElementById('toggle-cas');
+
+    const sliderDenoiseStrength = document.getElementById('slider-denoise-strength');
+    const valDenoiseStrength = document.getElementById('val-denoise-strength');
+    const sliderDenoiseThreshold = document.getElementById('slider-denoise-threshold');
+    const valDenoiseThreshold = document.getElementById('val-denoise-threshold');
+    const toggleDenoise = document.getElementById('toggle-denoise');
+
+    const sliderContrast = document.getElementById('slider-contrast');
+    const valContrast = document.getElementById('val-contrast');
+    const sliderVibrance = document.getElementById('slider-vibrance');
+    const valVibrance = document.getElementById('val-vibrance');
+    const selectInterpolation = document.getElementById('select-interpolation');
+
+    // Export Modal DOM
+    const btnExportMedia = document.getElementById('btn-export-media');
+    const exportModal = document.getElementById('export-modal');
+    const exportProgressBar = document.getElementById('export-progress-bar');
+    const exportStatusText = document.getElementById('export-status-text');
+    const exportPercentText = document.getElementById('export-percent-text');
+    const btnCancelExport = document.getElementById('btn-cancel-export');
+
+    // --- MEDIA ELEMENTS SETUP ---
+    let videoElement = document.createElement('video');
+    videoElement.loop = true;
+    videoElement.playsInline = true;
+    videoElement.crossOrigin = "anonymous";
+
+    let imageElement = new Image();
+    
+    // Synthetic Dynamic Pattern Generator
+    const syntheticCanvas = document.createElement('canvas');
+    syntheticCanvas.width = 1280;
+    syntheticCanvas.height = 720;
+    const synthCtx = syntheticCanvas.getContext('2d');
+    let synthFrame = 0;
+
+    function renderSyntheticPattern() {
+      synthFrame += 0.02;
+      const w = syntheticCanvas.width;
+      const h = syntheticCanvas.height;
+
+      synthCtx.fillStyle = '#080c14';
+      synthCtx.fillRect(0, 0, w, h);
+
+      // Grid Pattern
+      synthCtx.strokeStyle = 'rgba(30, 58, 138, 0.25)';
+      synthCtx.lineWidth = 1;
+      for (let x = 0; x < w; x += 40) {
+        synthCtx.beginPath(); synthCtx.moveTo(x, 0); synthCtx.lineTo(x, h); synthCtx.stroke();
+      }
+      for (let y = 0; y < h; y += 40) {
+        synthCtx.beginPath(); synthCtx.moveTo(0, y); synthCtx.lineTo(w, y); synthCtx.stroke();
+      }
+
+      // Moving Neon Lights
+      const cx = w/2 + Math.cos(synthFrame) * 250;
+      const cy = h/2 + Math.sin(synthFrame * 1.3) * 120;
+
+      const grad = synthCtx.createRadialGradient(cx, cy, 10, cx, cy, 200);
+      grad.addColorStop(0, 'rgba(59, 130, 246, 0.9)');
+      grad.addColorStop(0.5, 'rgba(147, 51, 234, 0.4)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      synthCtx.fillStyle = grad;
+      synthCtx.fillRect(0, 0, w, h);
+
+      // High-Contrast Sharp Text Test Pattern
+      synthCtx.fillStyle = '#ffffff';
+      synthCtx.font = 'bold 38px Inter, sans-serif';
+      synthCtx.fillText('QUANTUM WEBGL QUALITY TEST', 80, 120);
+
+      synthCtx.fillStyle = '#60a5fa';
+      synthCtx.font = '16px JetBrains Mono, monospace';
+      synthCtx.fillText(`FRAME: ${Math.floor(synthFrame * 60)} | RESOLUTION: ${w}x${h} | STEREO AUDIO DEMO`, 80, 155);
+
+      // Denoise Test Noise Box
+      const bx = w - 380, by = 80;
+      synthCtx.fillStyle = '#1e293b';
+      synthCtx.fillRect(bx, by, 300, 200);
+      synthCtx.strokeStyle = '#3b82f6';
+      synthCtx.strokeRect(bx, by, 300, 200);
+
+      const imgData = synthCtx.getImageData(bx + 10, by + 10, 280, 180);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const noise = (Math.random() - 0.5) * 60;
+        data[i] = Math.min(255, Math.max(0, 100 + noise));
+        data[i+1] = Math.min(255, Math.max(0, 120 + noise));
+        data[i+2] = Math.min(255, Math.max(0, 160 + noise));
+        data[i+3] = 255;
+      }
+      synthCtx.putImageData(imgData, bx + 10, by + 10);
+      synthCtx.fillStyle = '#f3f4f6';
+      synthCtx.font = '12px sans-serif';
+      synthCtx.fillText('ARTIFICIAL NOISE REGION', bx + 20, by + 30);
+    }
+
+    // --- THREE.JS ENGINE SETUP ---
+    let renderer, scene, camera, mediaTexture;
+    let customPassMaterial, quadMesh;
+
+    function initThree() {
+      try {
+        renderer = new THREE.WebGLRenderer({
+          canvas: canvas,
+          antialias: false,
+          powerPreference: "high-performance",
+          preserveDrawingBuffer: true
+        });
+        renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+        renderer.setSize(viewportContainer.clientWidth, viewportContainer.clientHeight);
+
+        scene = new THREE.Scene();
+        camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+        mediaTexture = new THREE.CanvasTexture(syntheticCanvas);
+        mediaTexture.minFilter = THREE.LinearFilter;
+        mediaTexture.magFilter = THREE.LinearFilter;
+
+        const fragmentShader = `
+          uniform sampler2D u_texture;
+          uniform vec2 u_resolution;
+          uniform float u_split_pos;
+          
+          uniform bool u_cas_enabled;
+          uniform float u_cas_sharpness;
+          
+          uniform bool u_denoise_enabled;
+          uniform float u_denoise_strength;
+          uniform float u_denoise_threshold;
+          
+          uniform float u_contrast;
+          uniform float u_vibrance;
+          uniform int u_interpolation_mode;
+
+          varying vec2 v_uv;
+
+          // --- BICUBIC SAMPLER ---
+          vec4 cubic(float v) {
+            vec4 c;
+            c.x = (1.0/6.0)*(((-v+3.0)*v-3.0)*v+1.0);
+            c.y = (1.0/6.0)*(((3.0*v-6.0)*v)*v+4.0);
+            c.z = (1.0/6.0)*(((-3.0*v+3.0)*v+3.0)*v+1.0);
+            c.w = (1.0/6.0)*(v*v*v);
+            return c;
+          }
+
+          vec4 textureBicubic(sampler2D tex, vec2 texCoords) {
+            vec2 texSize = u_resolution;
+            vec2 invTexSize = 1.0 / texSize;
+            texCoords = texCoords * texSize - 0.5;
+            vec2 fxy = fract(texCoords);
+            texCoords -= fxy;
+
+            vec4 xcubic = cubic(fxy.x);
+            vec4 ycubic = cubic(fxy.y);
+
+            vec4 c = texCoords.xxyy + vec2(-0.5, +1.5).xyxy;
+            vec4 s = vec4(xcubic.x + xcubic.y, xcubic.z + xcubic.w, ycubic.x + ycubic.y, ycubic.z + ycubic.w);
+            vec4 offset = c + vec4(xcubic.y, xcubic.w, ycubic.y, ycubic.w) / s;
+
+            vec4 sample0 = texture2D(tex, vec2(offset.x, offset.z) * invTexSize);
+            vec4 sample1 = texture2D(tex, vec2(offset.y, offset.z) * invTexSize);
+            vec4 sample2 = texture2D(tex, vec2(offset.x, offset.w) * invTexSize);
+            vec4 sample3 = texture2D(tex, vec2(offset.y, offset.w) * invTexSize);
+
+            float sx = s.x / (s.x + s.y);
+            float sy = s.z / (s.z + s.w);
+
+            return mix(mix(sample3, sample2, sx), mix(sample1, sample0, sx), sy);
+          }
+
+          // --- CAS SHARPENING ---
+          vec3 applyCAS(sampler2D tex, vec2 uv, vec2 texelSize, float sharpness) {
+            vec3 b = texture2D(tex, uv + vec2(0.0, -texelSize.y)).rgb;
+            vec3 d = texture2D(tex, uv + vec2(-texelSize.x, 0.0)).rgb;
+            vec3 e = texture2D(tex, uv).rgb;
+            vec3 f = texture2D(tex, uv + vec2(texelSize.x, 0.0)).rgb;
+            vec3 h = texture2D(tex, uv + vec2(0.0, texelSize.y)).rgb;
+
+            vec3 minRGB = min(min(min(d, e), min(f, b)), h);
+            vec3 maxRGB = max(max(max(d, e), max(f, b)), h);
+
+            vec3 amp = clamp(min(minRGB, 1.0 - maxRGB) / (maxRGB + 0.0001), 0.0, 1.0);
+            vec3 w = sqrt(amp) * (-sharpness);
+
+            return clamp((b * w + d * w + f * w + h * w + e) / (1.0 + 4.0 * w), 0.0, 1.0);
+          }
+
+          // --- BILATERAL DENOISE ---
+          vec3 applyBilateralDenoise(sampler2D tex, vec2 uv, vec2 texelSize, float strength, float threshold) {
+            vec3 centerColor = texture2D(tex, uv).rgb;
+            vec3 totalColor = centerColor;
+            float totalWeight = 1.0;
+
+            for (int x = -2; x <= 2; x++) {
+              for (int y = -2; y <= 2; y++) {
+                if (x == 0 && y == 0) continue;
+                vec2 offset = vec2(float(x), float(y)) * texelSize;
+                vec3 sampleColor = texture2D(tex, uv + offset).rgb;
+
+                float spatialWeight = exp(-float(x*x + y*y) / 4.5);
+                float colorDiff = length(centerColor - sampleColor);
+                float colorWeight = exp(-(colorDiff * colorDiff) / (2.0 * threshold * threshold));
+
+                float weight = spatialWeight * colorWeight * strength;
+                totalColor += sampleColor * weight;
+                totalWeight += weight;
+              }
+            }
+
+            return totalColor / totalWeight;
+          }
+
+          void main() {
+            vec2 uv = v_uv;
+            vec2 texelSize = 1.0 / u_resolution;
+
+            // UNTOUCHED ORIGINAL (LEFT)
+            if (uv.x < u_split_pos) {
+              gl_FragColor = texture2D(u_texture, uv);
+              return;
+            }
+
+            // ENHANCED (RIGHT)
+            vec3 color;
+            if (u_interpolation_mode == 0) {
+              color = textureBicubic(u_texture, uv).rgb;
+            } else {
+              color = texture2D(u_texture, uv).rgb;
+            }
+
+            if (u_denoise_enabled) {
+              color = applyBilateralDenoise(u_texture, uv, texelSize, u_denoise_strength, u_denoise_threshold);
+            }
+
+            if (u_cas_enabled) {
+              color = applyCAS(u_texture, uv, texelSize, u_cas_sharpness);
+            }
+
+            // Contrast
+            color = mix(vec3(0.5), color, u_contrast);
+
+            // Saturation / Vibrance
+            float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+            color = mix(vec3(luma), color, u_vibrance);
+
+            gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+          }
+        `;
+
+        const vertexShader = `
+          varying vec2 v_uv;
+          void main() {
+            v_uv = uv;
+            gl_Position = vec4(position, 1.0);
+          }
+        `;
+
+        customPassMaterial = new THREE.ShaderMaterial({
+          vertexShader: vertexShader,
+          fragmentShader: fragmentShader,
+          uniforms: {
+            u_texture: { value: mediaTexture },
+            u_resolution: { value: new THREE.Vector2(1280, 720) },
+            u_split_pos: { value: state.splitPos },
+            u_cas_enabled: { value: state.casEnabled },
+            u_cas_sharpness: { value: state.casSharpness },
+            u_denoise_enabled: { value: state.denoiseEnabled },
+            u_denoise_strength: { value: state.denoiseStrength },
+            u_denoise_threshold: { value: state.denoiseThreshold },
+            u_contrast: { value: state.contrast },
+            u_vibrance: { value: state.vibrance },
+            u_interpolation_mode: { value: state.interpolationMode }
+          }
+        });
+
+        quadMesh = new THREE.Mesh(new THREE.PlaneGeometry(2, 2), customPassMaterial);
+        scene.add(quadMesh);
+
+        logToTerminal("Three.js WebGL Pipeline Initialized.", "success");
+        window.addEventListener('resize', onWindowResize);
+
+      } catch (err) {
+        logToTerminal(`WebGL Init Error: ${err.message}`, 'error');
+      }
+    }
+
+    function onWindowResize() {
+      const w = viewportContainer.clientWidth;
+      const h = viewportContainer.clientHeight;
+      renderer.setSize(w, h);
+    }
+
+    // --- RENDER LOOP & TELEMETRY ---
+    let lastTime = performance.now();
+    let frameCount = 0;
+
+    function animate(currentTime) {
+      requestAnimationFrame(animate);
+
+      frameCount++;
+      const delta = currentTime - lastTime;
+      if (delta >= 500) {
+        state.fps = (frameCount * 1000) / delta;
+        hdrFps.innerText = state.fps.toFixed(1);
+        frameCount = 0;
+        lastTime = currentTime;
+      }
+
+      if (state.mediaType === 'synthetic') {
+        renderSyntheticPattern();
+        if (mediaTexture) mediaTexture.needsUpdate = true;
+      } else if (state.mediaType === 'video' && !videoElement.paused) {
+        if (mediaTexture) mediaTexture.needsUpdate = true;
+        updateVideoTimeline();
+      }
+
+      customPassMaterial.uniforms.u_split_pos.value = state.splitPos;
+      renderer.render(scene, camera);
+    }
+
+    // --- SPLIT-SCREEN CONTROLLER ---
+    function setupSplitScreen() {
+      let isDragging = false;
+      function updateSplit(e) {
+        const rect = viewportContainer.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let x = (clientX - rect.left) / rect.width;
+        x = Math.max(0.0, Math.min(1.0, x));
+        state.splitPos = x;
+        splitDivider.style.left = `${x * 100}%`;
+      }
+
+      viewportContainer.addEventListener('mousedown', (e) => { isDragging = true; updateSplit(e); });
+      window.addEventListener('mousemove', (e) => { if (isDragging) updateSplit(e); });
+      window.addEventListener('mouseup', () => { isDragging = false; });
+
+      viewportContainer.addEventListener('touchstart', (e) => { isDragging = true; updateSplit(e); });
+      window.addEventListener('touchmove', (e) => { if (isDragging) updateSplit(e); });
+      window.addEventListener('touchend', () => { isDragging = false; });
+    }
+
+    // --- VIDEO PLAYBACK & AUDIO CONTROLLER ---
+    function updateVideoTimeline() {
+      if (!videoElement.duration) return;
+      const progress = (videoElement.currentTime / videoElement.duration) * 100;
+      seekbar.value = progress;
+
+      const formatTime = (s) => {
+        const m = Math.floor(s / 60);
+        const sec = Math.floor(s % 60);
+        return `${m.toString().padStart(2, '0')}:${sec.toString().padStart(2, '0')}`;
+      };
+      timeDisplay.innerText = `${formatTime(videoElement.currentTime)} / ${formatTime(videoElement.duration)}`;
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+      if (state.mediaType !== 'video') return;
+      if (videoElement.paused) {
+        videoElement.play().then(() => {
+          btnPlayPause.innerHTML = '<i class="fa-solid fa-pause"></i>';
+          logToTerminal("Video playback started.", "info");
+        }).catch(err => {
+          logToTerminal(`Playback error: ${err.message}`, "error");
+        });
+      } else {
+        videoElement.pause();
+        btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
+      }
+    });
+
+    seekbar.addEventListener('input', () => {
+      if (state.mediaType === 'video' && videoElement.duration) {
+        videoElement.currentTime = (seekbar.value / 100) * videoElement.duration;
+      }
+    });
+
+    btnMute.addEventListener('click', () => {
+      videoElement.muted = !videoElement.muted;
+      btnMute.innerHTML = videoElement.muted ? 
+        '<i class="fa-solid fa-volume-xmark text-red-400"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+      logToTerminal(`Audio ${videoElement.muted ? 'Muted' : 'Unmuted'}`, 'info');
+    });
+
+    audioVolume.addEventListener('input', (e) => {
+      videoElement.volume = parseFloat(e.target.value);
+      videoElement.muted = videoElement.volume === 0;
+      btnMute.innerHTML = videoElement.muted ? 
+        '<i class="fa-solid fa-volume-xmark text-red-400"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+    });
+
+    btnFullscreen.addEventListener('click', () => {
+      if (!document.fullscreenElement) viewportContainer.requestFullscreen();
+      else document.exitFullscreen();
+    });
+
+    // --- UNIVERSAL MEDIA LOADER ---
+    mediaFileInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const url = URL.createObjectURL(file);
+      mediaFilenameLabel.innerText = `File: ${file.name}`;
+      logToTerminal(`Importing file: ${file.name} (${(file.size / (1024*1024)).toFixed(2)} MB)`, "info");
+
+      const ext = file.name.split('.').pop().toLowerCase();
+      const isVideo = file.type.startsWith('video/') || ['mp4', 'webm', 'mov', 'mkv', 'avi', 'ogv'].includes(ext);
+      const isImage = file.type.startsWith('image/') || ['png', 'jpg', 'jpeg', 'webp', 'bmp'].includes(ext);
+
+      if (isVideo) {
+        state.mediaType = 'video';
+        inputTypeTag.innerText = 'VIDEO FILE';
+        videoControlsBar.classList.remove('hidden');
+
+        videoElement.src = url;
+        videoElement.load();
+
+        videoElement.onloadedmetadata = () => {
+          mediaTexture.dispose();
+          mediaTexture = new THREE.VideoTexture(videoElement);
+          mediaTexture.minFilter = THREE.LinearFilter;
+          mediaTexture.magFilter = THREE.LinearFilter;
+          customPassMaterial.uniforms.u_texture.value = mediaTexture;
+
+          updateResolutionMetrics(videoElement.videoWidth, videoElement.videoHeight);
+          logToTerminal(`Video Stream Loaded: ${videoElement.videoWidth}x${videoElement.videoHeight}px`, "success");
+          
+          videoElement.play().then(() => {
+            btnPlayPause.innerHTML = '<i class="fa-solid fa-pause"></i>';
+          }).catch(err => {
+            logToTerminal(`Audio Autoplay notice: User interaction required to play audio.`, "warn");
+          });
+        };
+
+        videoElement.onerror = () => {
+          logToTerminal(`Video Decoder Error: Format .${ext} may require proprietary browser codecs.`, "error");
+        };
+
+      } else if (isImage) {
+        state.mediaType = 'image';
+        inputTypeTag.innerText = 'STATIC IMAGE';
+        videoElement.pause();
+        videoControlsBar.classList.add('hidden');
+
+        imageElement.onload = () => {
+          mediaTexture.dispose();
+          mediaTexture = new THREE.Texture(imageElement);
+          mediaTexture.needsUpdate = true;
+          mediaTexture.minFilter = THREE.LinearFilter;
+          mediaTexture.magFilter = THREE.LinearFilter;
+          customPassMaterial.uniforms.u_texture.value = mediaTexture;
+
+          updateResolutionMetrics(imageElement.width, imageElement.height);
+          logToTerminal(`Image Loaded: ${imageElement.width}x${imageElement.height}px`, "success");
+        };
+
+        imageElement.onerror = () => {
+          logToTerminal(`Image Load Error: Failed to parse image file.`, "error");
+        };
+        imageElement.src = url;
+
+      } else {
+        logToTerminal(`Unsupported Format: .${ext} is not recognized.`, "error");
+      }
+    });
+
+    btnSynthetic.addEventListener('click', () => {
+      state.mediaType = 'synthetic';
+      inputTypeTag.innerText = 'SYNTHETIC';
+      videoElement.pause();
+      videoControlsBar.classList.remove('hidden');
+      mediaFilenameLabel.innerText = "Loaded: Synthetic Dynamic Pattern";
+
+      mediaTexture.dispose();
+      mediaTexture = new THREE.CanvasTexture(syntheticCanvas);
+      customPassMaterial.uniforms.u_texture.value = mediaTexture;
+      updateResolutionMetrics(1280, 720);
+      logToTerminal("Switched to Synthetic Benchmark Pattern.", "info");
+    });
+
+    function updateResolutionMetrics(srcW, srcH) {
+      let targetH = state.isNativeRes ? srcH : state.targetHeight;
+      const scale = (targetH / srcH).toFixed(2);
+      const targetW = Math.round(srcW * (targetH / srcH));
+
+      hdrRes.innerText = `${targetW}x${targetH}`;
+      customPassMaterial.uniforms.u_resolution.value.set(targetW, targetH);
+    }
+
+    // --- CONTROLS UI BINDING ---
+    document.querySelectorAll('.res-preset-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        document.querySelectorAll('.res-preset-btn').forEach(b => {
+          b.classList.remove('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+          b.classList.add('text-slate-300');
+        });
+        btn.classList.add('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+
+        if (btn.dataset.res === 'native') {
+          state.isNativeRes = true;
+          document.getElementById('target-res-badge').innerText = 'Native';
+        } else {
+          state.isNativeRes = false;
+          state.targetHeight = parseInt(btn.dataset.res);
+          document.getElementById('target-res-badge').innerText = `${state.targetHeight}p`;
+        }
+
+        let curW = 1280, curH = 720;
+        if (state.mediaType === 'video') { curW = videoElement.videoWidth || 1280; curH = videoElement.videoHeight || 720; }
+        else if (state.mediaType === 'image') { curW = imageElement.width || 1280; curH = imageElement.height || 720; }
+
+        updateResolutionMetrics(curW, curH);
+      });
+    });
+
+    sliderCasSharpness.addEventListener('input', (e) => {
+      state.casSharpness = parseFloat(e.target.value);
+      valCasSharpness.innerText = state.casSharpness.toFixed(2);
+      customPassMaterial.uniforms.u_cas_sharpness.value = state.casSharpness;
+    });
+    toggleCas.addEventListener('change', (e) => {
+      state.casEnabled = e.target.checked;
+      customPassMaterial.uniforms.u_cas_enabled.value = state.casEnabled;
+    });
+
+    sliderDenoiseStrength.addEventListener('input', (e) => {
+      state.denoiseStrength = parseFloat(e.target.value);
+      valDenoiseStrength.innerText = state.denoiseStrength.toFixed(2);
+      customPassMaterial.uniforms.u_denoise_strength.value = state.denoiseStrength;
+    });
+    sliderDenoiseThreshold.addEventListener('input', (e) => {
+      state.denoiseThreshold = parseFloat(e.target.value);
+      valDenoiseThreshold.innerText = state.denoiseThreshold.toFixed(2);
+      customPassMaterial.uniforms.u_denoise_threshold.value = state.denoiseThreshold;
+    });
+    toggleDenoise.addEventListener('change', (e) => {
+      state.denoiseEnabled = e.target.checked;
+      customPassMaterial.uniforms.u_denoise_enabled.value = state.denoiseEnabled;
+    });
+
+    sliderContrast.addEventListener('input', (e) => {
+      state.contrast = parseFloat(e.target.value);
+      valContrast.innerText = state.contrast.toFixed(2);
+      customPassMaterial.uniforms.u_contrast.value = state.contrast;
+    });
+    sliderVibrance.addEventListener('input', (e) => {
+      state.vibrance = parseFloat(e.target.value);
+      valVibrance.innerText = state.vibrance.toFixed(2);
+      customPassMaterial.uniforms.u_vibrance.value = state.vibrance;
+    });
+
+    selectInterpolation.addEventListener('change', (e) => {
+      const modeMap = { 'bicubic': 0, 'bilinear': 1, 'nearest': 2 };
+      state.interpolationMode = modeMap[e.target.value];
+      customPassMaterial.uniforms.u_interpolation_mode.value = state.interpolationMode;
+
+      if (mediaTexture) {
+        mediaTexture.minFilter = (e.target.value === 'nearest') ? THREE.NearestFilter : THREE.LinearFilter;
+        mediaTexture.magFilter = (e.target.value === 'nearest') ? THREE.NearestFilter : THREE.LinearFilter;
+        mediaTexture.needsUpdate = true;
+      }
+    });
+
+    // --- TAB SWITCHER ---
+    const tabBtnControls = document.getElementById('tab-btn-controls');
+    const tabBtnConsole = document.getElementById('tab-btn-console');
+    const tabContentControls = document.getElementById('tab-content-controls');
+    const tabContentConsole = document.getElementById('tab-content-console');
+
+    tabBtnControls.addEventListener('click', () => {
+      tabBtnControls.className = "flex-1 py-3 text-xs font-semibold text-blue-400 border-b-2 border-blue-500 flex items-center justify-center gap-2";
+      tabBtnConsole.className = "flex-1 py-3 text-xs font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center justify-center gap-2";
+      tabContentControls.classList.remove('hidden');
+      tabContentConsole.classList.add('hidden');
+      tabContentConsole.classList.remove('flex');
+    });
+
+    tabBtnConsole.addEventListener('click', () => {
+      tabBtnConsole.className = "flex-1 py-3 text-xs font-semibold text-blue-400 border-b-2 border-blue-500 flex items-center justify-center gap-2";
+      tabBtnControls.className = "flex-1 py-3 text-xs font-semibold text-slate-400 border-b-2 border-transparent hover:text-slate-200 flex items-center justify-center gap-2";
+      tabContentConsole.classList.remove('hidden');
+      tabContentConsole.classList.add('flex');
+      tabContentControls.classList.add('hidden');
+    });
+
+    // Console Copy & Clear
+    document.getElementById('btn-copy-console').addEventListener('click', () => {
+      const logText = logHistory.join('\n');
+      const tempTextArea = document.createElement('textarea');
+      tempTextArea.value = logText;
+      document.body.appendChild(tempTextArea);
+      tempTextArea.select();
+      document.execCommand('copy');
+      document.body.removeChild(tempTextArea);
+
+      logToTerminal("Console logs copied to clipboard!", "success");
+    });
+
+    document.getElementById('btn-clear-console').addEventListener('click', () => {
+      consoleLogsContainer.innerHTML = '';
+      logCount = 0;
+      consoleBadge.innerText = '0';
+      logHistory = [];
+    });
+
+    // --- MEDIA EXPORTER ENGINE (VIDEO RECORDING & IMAGE SAVER) ---
+    let mediaRecorder = null;
+    let recordedChunks = [];
+
+    btnExportMedia.addEventListener('click', () => {
+      if (state.mediaType === 'image') {
+        exportStaticImage();
+      } else {
+        exportVideoWithAudio();
+      }
+    });
+
+    function exportStaticImage() {
+      // Force split to 0% to show 100% enhanced render on canvas
+      const oldSplit = state.splitPos;
+      customPassMaterial.uniforms.u_split_pos.value = 0.0;
+      renderer.render(scene, camera);
+
+      const dataURL = canvas.toDataURL('image/png');
+      const link = document.createElement('a');
+      link.download = `enhanced-image-${Date.now()}.png`;
+      link.href = dataURL;
+      link.click();
+
+      customPassMaterial.uniforms.u_split_pos.value = oldSplit;
+      logToTerminal("Exported Enhanced PNG Image successfully.", "success");
+    }
+
+    function exportVideoWithAudio() {
+      if (typeof MediaRecorder === 'undefined') {
+        logToTerminal("MediaRecorder API is not supported in this browser.", "error");
+        return;
+      }
+
+      exportModal.classList.remove('hidden');
+      exportStatusText.innerText = "Initializing Video Capture...";
+      exportProgressBar.style.width = "0%";
+      exportPercentText.innerText = "0%";
+
+      const oldSplit = state.splitPos;
+      customPassMaterial.uniforms.u_split_pos.value = 0.0; // Export full enhanced view
+
+      // Capture WebGL Canvas Stream at 60 FPS
+      const canvasStream = canvas.captureStream(60);
+      let combinedStream = new MediaStream(canvasStream.getVideoTracks());
+
+      // If video source has audio, attach audio track to stream
+      if (state.mediaType === 'video' && videoElement.captureStream) {
+        const vidStream = videoElement.captureStream();
+        const audioTracks = vidStream.getAudioTracks();
+        if (audioTracks.length > 0) {
+          combinedStream.addTrack(audioTracks[0]);
+          logToTerminal("Audio track attached to WebGL capture stream.", "info");
+        }
+      }
+
+      // Choose supported MIME type
+      let mimeType = 'video/webm;codecs=vp9,opus';
+      if (!MediaRecorder.isTypeSupported(mimeType)) {
+        mimeType = 'video/webm';
+      }
+
+      recordedChunks = [];
+      try {
+        mediaRecorder = new MediaRecorder(combinedStream, { mimeType: mimeType });
+      } catch (e) {
+        logToTerminal(`MediaRecorder creation failed: ${e.message}`, "error");
+        exportModal.classList.add('hidden');
+        return;
+      }
+
+      mediaRecorder.ondataavailable = (e) => {
+        if (e.data.size > 0) recordedChunks.push(e.data);
+      };
+
+      mediaRecorder.onstop = () => {
+        const blob = new Blob(recordedChunks, { type: 'video/webm' });
+        const url = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = `enhanced-video-${Date.now()}.webm`;
+        a.click();
+
+        customPassMaterial.uniforms.u_split_pos.value = oldSplit;
+        exportModal.classList.add('hidden');
+        logToTerminal(`Exported Enhanced Video file (${(blob.size / (1024*1024)).toFixed(2)} MB)`, "success");
+      };
+
+      // Restart Video for recording run
+      if (state.mediaType === 'video') {
+        videoElement.currentTime = 0;
+        videoElement.play();
+      }
+
+      mediaRecorder.start();
+      state.isRecording = true;
+      logToTerminal("MediaRecorder started capturing stream...", "info");
+
+      // Progress Tracker loop
+      const recordInterval = setInterval(() => {
+        if (!state.isRecording) {
+          clearInterval(recordInterval);
+          return;
+        }
+
+        let progress = 0;
+        if (state.mediaType === 'video' && videoElement.duration) {
+          progress = (videoElement.currentTime / videoElement.duration) * 100;
+        } else {
+          progress += 5; // Synthetic timer
+        }
+
+        progress = Math.min(100, progress);
+        exportProgressBar.style.width = `${progress}%`;
+        exportPercentText.innerText = `${Math.floor(progress)}%`;
+        exportStatusText.innerText = `Encoding frames (${Math.floor(progress)}%)...`;
+
+        if (progress >= 99 || (state.mediaType === 'video' && videoElement.ended)) {
+          clearInterval(recordInterval);
+          stopRecording();
+        }
+      }, 200);
+    }
+
+    function stopRecording() {
+      if (mediaRecorder && mediaRecorder.state !== 'inactive') {
+        mediaRecorder.stop();
+        state.isRecording = false;
+      }
+    }
+
+    btnCancelExport.addEventListener('click', () => {
+      stopRecording();
+      exportModal.classList.add('hidden');
+      logToTerminal("Video export canceled by user.", "warn");
+    });
+
+    // --- INITIALIZE APP ON WINDOW LOAD ---
+    window.onload = () => {
+      initThree();
+      setupSplitScreen();
+      animate(0);
+      logToTerminal("Quantum Quality Enhancer fully ready.", "info");
+    };
+  </script>
+</body>
+</html>

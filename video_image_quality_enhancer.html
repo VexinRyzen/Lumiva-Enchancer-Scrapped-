@@ -1,0 +1,1025 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>WebGL Video & Image Quality Enhancer</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <!-- Three.js & Post-Processing Suite -->
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <!-- FontAwesome Icons -->
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    body {
+      font-family: 'Inter', sans-serif;
+      overflow: hidden;
+      background-color: #0b0f17;
+      color: #f3f4f6;
+    }
+    
+    /* Custom Scrollbars */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: rgba(15, 23, 42, 0.6);
+    }
+    ::-webkit-scrollbar-thumb {
+      background: rgba(59, 130, 246, 0.4);
+      border-radius: 3px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: rgba(59, 130, 246, 0.7);
+    }
+
+    /* Glassmorphism styling */
+    .glass-panel {
+      background: rgba(15, 23, 42, 0.75);
+      backdrop-filter: blur(16px);
+      -webkit-backdrop-filter: blur(16px);
+      border: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .glass-button {
+      background: rgba(30, 41, 59, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      transition: all 0.2s ease;
+    }
+    .glass-button:hover {
+      background: rgba(59, 130, 246, 0.3);
+      border-color: rgba(96, 165, 250, 0.5);
+    }
+
+    /* Slider Handle styling */
+    input[type=range] {
+      -webkit-appearance: none;
+      background: transparent;
+    }
+    input[type=range]:focus {
+      outline: none;
+    }
+    input[type=range]::-webkit-slider-runnable-track {
+      width: 100%;
+      height: 6px;
+      cursor: pointer;
+      background: #1e293b;
+      border-radius: 3px;
+      border: 1px solid rgba(255, 255, 255, 0.05);
+    }
+    input[type=range]::-webkit-slider-thumb {
+      height: 16px;
+      width: 16px;
+      border-radius: 50%;
+      background: #3b82f6;
+      cursor: pointer;
+      -webkit-appearance: none;
+      margin-top: -5px;
+      box-shadow: 0 0 10px rgba(59, 130, 246, 0.5);
+    }
+
+    /* Toggle Switch */
+    .toggle-checkbox:checked {
+      right: 0;
+      border-color: #3b82f6;
+      background-color: #3b82f6;
+    }
+    .toggle-checkbox:checked + .toggle-label {
+      background-color: #3b82f6;
+    }
+
+    /* Comparison Splitter Divider Line */
+    #split-divider {
+      box-shadow: 0 0 12px rgba(59, 130, 246, 0.8), 0 0 20px rgba(0,0,0,0.8);
+    }
+  </style>
+</head>
+<body class="h-screen w-screen relative select-none flex flex-col md:flex-row overflow-hidden">
+
+  <!-- MAIN CANVAS CONTAINER -->
+  <div id="viewport-container" class="relative flex-1 h-full w-full bg-slate-950 flex items-center justify-center overflow-hidden">
+    
+    <!-- Three.js WebGL Target Canvas -->
+    <canvas id="webgl-canvas" class="w-full h-full block cursor-crosshair"></canvas>
+
+    <!-- Split-Screen Handle Overlay -->
+    <div id="split-divider" class="absolute top-0 bottom-0 w-1 bg-blue-500 cursor-ew-resize z-20 pointer-events-none flex items-center justify-center" style="left: 50%;">
+      <div class="w-8 h-8 rounded-full bg-blue-600 text-white flex items-center justify-center shadow-lg text-xs font-bold border border-blue-300 pointer-events-auto hover:scale-110 transition-transform">
+        <i class="fa-solid fa-arrows-left-right"></i>
+      </div>
+    </div>
+
+    <!-- On-screen Badges -->
+    <div class="absolute top-4 left-4 z-10 flex gap-2 pointer-events-none">
+      <span class="px-3 py-1 rounded-full text-xs font-semibold bg-red-950/80 text-red-300 border border-red-800/50 backdrop-blur-md">
+        ORIGINAL
+      </span>
+    </div>
+    <div class="absolute top-4 right-4 z-10 flex gap-2 pointer-events-none">
+      <span class="px-3 py-1 rounded-full text-xs font-semibold bg-blue-950/80 text-blue-300 border border-blue-800/50 backdrop-blur-md flex items-center gap-1.5">
+        <i class="fa-solid fa-wand-magic-sparkles text-blue-400"></i> ENHANCED
+      </span>
+    </div>
+
+    <!-- HUD Overlay Performance Monitor -->
+    <div class="absolute bottom-16 left-4 z-10 glass-panel rounded-xl p-3 text-xs font-mono space-y-1 border border-slate-800 shadow-2xl pointer-events-auto">
+      <div class="flex items-center justify-between gap-4 text-slate-400 border-b border-slate-700/50 pb-1 mb-1">
+        <span class="font-bold text-slate-200"><i class="fa-solid fa-gauge-high text-blue-400 mr-1"></i> TELEMETRY</span>
+        <span id="hud-status" class="text-emerald-400 font-sans text-[10px] uppercase">Active</span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-slate-400">FPS:</span>
+        <span id="hud-fps" class="text-blue-400 font-bold">60.0</span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-slate-400">Frame Time:</span>
+        <span id="hud-frametime" class="text-emerald-400">16.6 ms</span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-slate-400">Target Res:</span>
+        <span id="hud-resolution" class="text-amber-400">1920x1080</span>
+      </div>
+      <div class="flex justify-between gap-4">
+        <span class="text-slate-400">Scaling Factor:</span>
+        <span id="hud-scale" class="text-purple-400">1.00x</span>
+      </div>
+    </div>
+
+    <!-- Video Playback Bar Overlay -->
+    <div id="video-controls-bar" class="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 glass-panel px-4 py-2 rounded-2xl flex items-center gap-3 border border-slate-700/60 shadow-2xl max-w-xl w-[90%]">
+      <button id="btn-play-pause" class="text-slate-200 hover:text-blue-400 transition-colors w-8 h-8 flex items-center justify-center rounded-lg bg-slate-800/80">
+        <i class="fa-solid fa-play"></i>
+      </button>
+      
+      <span id="time-display" class="text-[11px] font-mono text-slate-400 min-w-[80px]">00:00 / 00:00</span>
+      
+      <!-- Seekbar -->
+      <input id="video-seekbar" type="range" min="0" max="100" value="0" class="flex-1 accent-blue-500 h-1.5 bg-slate-700 rounded-lg cursor-pointer">
+      
+      <!-- Frame Steppers -->
+      <button id="btn-step-back" title="Step -1 Frame" class="text-slate-400 hover:text-slate-200 text-xs p-1">
+        <i class="fa-solid fa-backward-step"></i>
+      </button>
+      <button id="btn-step-fwd" title="Step +1 Frame" class="text-slate-400 hover:text-slate-200 text-xs p-1">
+        <i class="fa-solid fa-forward-step"></i>
+      </button>
+
+      <!-- Volume -->
+      <button id="btn-mute" class="text-slate-400 hover:text-slate-200 text-xs p-1 ml-1">
+        <i class="fa-solid fa-volume-high"></i>
+      </button>
+
+      <!-- Fullscreen -->
+      <button id="btn-fullscreen" class="text-slate-400 hover:text-blue-400 text-xs p-1">
+        <i class="fa-solid fa-expand"></i>
+      </button>
+    </div>
+
+  </div>
+
+  <!-- CONTROL SIDEBAR -->
+  <div class="w-full md:w-96 glass-panel h-full z-30 flex flex-col border-l border-slate-800/80 relative">
+    
+    <!-- Sidebar Header -->
+    <div class="p-4 border-b border-slate-800/80 flex items-center justify-between bg-slate-900/40">
+      <div class="flex items-center gap-2">
+        <div class="p-2 rounded-lg bg-blue-600/20 text-blue-400 border border-blue-500/30">
+          <i class="fa-solid fa-sliders text-lg"></i>
+        </div>
+        <div>
+          <h1 class="text-sm font-bold tracking-wide text-slate-100">QUANTUM ENHANCER</h1>
+          <p class="text-[10px] text-slate-400">WebGL Shader Upscaler Pipeline</p>
+        </div>
+      </div>
+      <button id="btn-snapshot" title="Export Snapshot" class="glass-button px-3 py-1.5 rounded-lg text-xs font-medium text-blue-400 flex items-center gap-1.5">
+        <i class="fa-solid fa-download"></i> Save
+      </button>
+    </div>
+
+    <!-- Scrollable Control Stack -->
+    <div class="flex-1 overflow-y-auto p-4 space-y-5">
+
+      <!-- Media Input & Preset Source -->
+      <div class="space-y-2">
+        <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-file-video text-blue-400"></i> Media Source
+        </label>
+        
+        <div class="grid grid-cols-2 gap-2">
+          <label class="glass-button p-2.5 rounded-xl cursor-pointer text-center text-xs flex flex-col items-center justify-center gap-1 hover:border-blue-500/50">
+            <i class="fa-solid fa-upload text-slate-400 text-sm"></i>
+            <span class="text-slate-300 font-medium">Upload File</span>
+            <input type="file" id="media-input" accept="video/*,image/*" class="hidden">
+          </label>
+          
+          <button id="btn-synthetic-mode" class="glass-button p-2.5 rounded-xl text-xs flex flex-col items-center justify-center gap-1 border-blue-500/30">
+            <i class="fa-solid fa-film text-purple-400 text-sm"></i>
+            <span class="text-slate-300 font-medium">Demo Video</span>
+          </button>
+        </div>
+        <p id="media-file-name" class="text-[10px] text-slate-400 truncate text-center italic mt-1">Loaded: Synthetic Benchmark Pattern</p>
+      </div>
+
+      <!-- Target Resolution Preset Selector -->
+      <div class="space-y-2 border-t border-slate-800/80 pt-4">
+        <div class="flex justify-between items-center">
+          <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-expand text-blue-400"></i> Target Resolution
+          </label>
+          <span id="res-badge" class="text-[10px] bg-slate-800 text-blue-400 px-2 py-0.5 rounded font-mono">1080p</span>
+        </div>
+
+        <div class="grid grid-cols-4 gap-1.5">
+          <button class="res-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="144">144p</button>
+          <button class="res-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="240">240p</button>
+          <button class="res-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="480">480p</button>
+          <button class="res-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="720">720p</button>
+          <button class="res-btn glass-button py-1.5 rounded-lg text-xs font-mono bg-blue-600/30 text-blue-300 border-blue-500/50" data-res="1080">1080p</button>
+          <button class="res-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="1440">1440p</button>
+          <button class="res-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="2048">2K</button>
+          <button class="res-btn glass-button py-1.5 rounded-lg text-xs font-mono text-slate-300 hover:text-white" data-res="3840">4K</button>
+        </div>
+        <p class="text-[10px] text-slate-400">Scales processing buffer simulating target display density.</p>
+      </div>
+
+      <!-- AMD CAS Sharpening Engine -->
+      <div class="space-y-3 border-t border-slate-800/80 pt-4">
+        <div class="flex justify-between items-center">
+          <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-bolt text-amber-400"></i> Contrast Adaptive Sharpen
+          </label>
+          <input type="checkbox" id="toggle-cas" class="accent-blue-500 rounded cursor-pointer" checked>
+        </div>
+        
+        <div class="space-y-1">
+          <div class="flex justify-between text-[11px] text-slate-400">
+            <span>Sharpness Intensity</span>
+            <span id="val-cas-sharpness" class="font-mono text-blue-400">0.75</span>
+          </div>
+          <input id="slider-cas-sharpness" type="range" min="0.0" max="2.0" step="0.05" value="0.75" class="w-full">
+        </div>
+      </div>
+
+      <!-- Bilateral Edge-Aware Denoising -->
+      <div class="space-y-3 border-t border-slate-800/80 pt-4">
+        <div class="flex justify-between items-center">
+          <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+            <i class="fa-solid fa-filter text-emerald-400"></i> Bilateral Edge Denoise
+          </label>
+          <input type="checkbox" id="toggle-denoise" class="accent-blue-500 rounded cursor-pointer" checked>
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-[11px] text-slate-400">
+            <span>Denoise Strength</span>
+            <span id="val-denoise-strength" class="font-mono text-blue-400">0.40</span>
+          </div>
+          <input id="slider-denoise-strength" type="range" min="0.0" max="1.0" step="0.02" value="0.40" class="w-full">
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-[11px] text-slate-400">
+            <span>Edge Preserve Threshold</span>
+            <span id="val-denoise-threshold" class="font-mono text-blue-400">0.15</span>
+          </div>
+          <input id="slider-denoise-threshold" type="range" min="0.01" max="0.5" step="0.01" value="0.15" class="w-full">
+        </div>
+      </div>
+
+      <!-- Color Vibrance & Dynamic Range Pass -->
+      <div class="space-y-3 border-t border-slate-800/80 pt-4">
+        <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-circle-half-stroke text-purple-400"></i> Color & Contrast Range
+        </label>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-[11px] text-slate-400">
+            <span>Contrast Boost</span>
+            <span id="val-contrast" class="font-mono text-blue-400">1.15</span>
+          </div>
+          <input id="slider-contrast" type="range" min="0.8" max="1.8" step="0.02" value="1.15" class="w-full">
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-[11px] text-slate-400">
+            <span>Vibrance / Saturation</span>
+            <span id="val-vibrance" class="font-mono text-blue-400">1.20</span>
+          </div>
+          <input id="slider-vibrance" type="range" min="0.5" max="2.0" step="0.05" value="1.20" class="w-full">
+        </div>
+
+        <div class="space-y-1">
+          <div class="flex justify-between text-[11px] text-slate-400">
+            <span>Unsharp Mask Radius</span>
+            <span id="val-unsharp" class="font-mono text-blue-400">1.0px</span>
+          </div>
+          <input id="slider-unsharp" type="range" min="0.5" max="3.0" step="0.1" value="1.0" class="w-full">
+        </div>
+      </div>
+
+      <!-- Spatial Interpolation Algorithm -->
+      <div class="space-y-2 border-t border-slate-800/80 pt-4 mb-6">
+        <label class="text-xs font-semibold text-slate-300 uppercase tracking-wider flex items-center gap-1.5">
+          <i class="fa-solid fa-sliders text-cyan-400"></i> Interpolation Filter
+        </label>
+        <select id="select-interpolation" class="w-full bg-slate-900 border border-slate-700 text-xs rounded-lg p-2 text-slate-200 focus:outline-none focus:border-blue-500">
+          <option value="bicubic" selected>Catmull-Rom Bicubic Sampler</option>
+          <option value="bilinear">Standard Bilinear Filtering</option>
+          <option value="nearest">Nearest Neighbor (Pixelated)</option>
+        </select>
+      </div>
+
+    </div>
+
+    <!-- Footer Stats / Mode indicator -->
+    <div class="p-3 border-t border-slate-800 bg-slate-950/60 text-[11px] text-slate-400 flex items-center justify-between">
+      <span>Pipeline Status: <strong class="text-blue-400">WebGL Shader Active</strong></span>
+      <span class="text-slate-400">v1.2.0</span>
+    </div>
+
+  </div>
+
+  <!-- JAVASCRIPT PIPELINE IMPLEMENTATION -->
+  <script>
+    // --- PIPELINE STATE & PARAMETERS ---
+    const state = {
+      splitPos: 0.5,           // 0.0 to 1.0
+      targetHeight: 1080,      // Simulated target vertical resolution
+      isDraggingSplitter: false,
+      casEnabled: true,
+      casSharpness: 0.75,
+      denoiseEnabled: true,
+      denoiseStrength: 0.40,
+      denoiseThreshold: 0.15,
+      contrast: 1.15,
+      vibrance: 1.20,
+      unsharpRadius: 1.0,
+      interpolationMode: 0,   // 0: Bicubic, 1: Bilinear, 2: Nearest
+      mediaType: 'synthetic', // 'synthetic', 'video', 'image'
+      fps: 60,
+      frameTime: 16.6
+    };
+
+    // --- DOM REFERENCES ---
+    const canvas = document.getElementById('webgl-canvas');
+    const viewportContainer = document.getElementById('viewport-container');
+    const splitDivider = document.getElementById('split-divider');
+    const mediaInput = document.getElementById('media-input');
+    const btnSynthetic = document.getElementById('btn-synthetic-mode');
+    const fileNameDisplay = document.getElementById('media-file-name');
+    const videoControlsBar = document.getElementById('video-controls-bar');
+    const btnPlayPause = document.getElementById('btn-play-pause');
+    const seekbar = document.getElementById('video-seekbar');
+    const timeDisplay = document.getElementById('time-display');
+    const btnSnapshot = document.getElementById('btn-snapshot');
+
+    // Telemetry DOM
+    const hudFps = document.getElementById('hud-fps');
+    const hudFrameTime = document.getElementById('hud-frametime');
+    const hudRes = document.getElementById('hud-resolution');
+    const hudScale = document.getElementById('hud-scale');
+
+    // Control Elements DOM
+    const sliderCasSharpness = document.getElementById('slider-cas-sharpness');
+    const valCasSharpness = document.getElementById('val-cas-sharpness');
+    const toggleCas = document.getElementById('toggle-cas');
+
+    const sliderDenoiseStrength = document.getElementById('slider-denoise-strength');
+    const valDenoiseStrength = document.getElementById('val-denoise-strength');
+    const sliderDenoiseThreshold = document.getElementById('slider-denoise-threshold');
+    const valDenoiseThreshold = document.getElementById('val-denoise-threshold');
+    const toggleDenoise = document.getElementById('toggle-denoise');
+
+    const sliderContrast = document.getElementById('slider-contrast');
+    const valContrast = document.getElementById('val-contrast');
+    const sliderVibrance = document.getElementById('slider-vibrance');
+    const valVibrance = document.getElementById('val-vibrance');
+    const sliderUnsharp = document.getElementById('slider-unsharp');
+    const valUnsharp = document.getElementById('val-unsharp');
+    const selectInterpolation = document.getElementById('select-interpolation');
+
+    // --- MEDIA HANDLERS ---
+    let videoElement = document.createElement('video');
+    videoElement.loop = true;
+    videoElement.muted = true;
+    videoElement.playsInline = true;
+    videoElement.crossOrigin = "anonymous";
+
+    let imageElement = new Image();
+    
+    // Synthetic Canvas Generator
+    const syntheticCanvas = document.createElement('canvas');
+    syntheticCanvas.width = 1280;
+    syntheticCanvas.height = 720;
+    const synthCtx = syntheticCanvas.getContext('2d');
+
+    let synthAnimFrame = 0;
+    function renderSyntheticFrame() {
+      synthAnimFrame += 0.02;
+      const w = syntheticCanvas.width;
+      const h = syntheticCanvas.height;
+
+      // Dark futuristic grid background
+      synthCtx.fillStyle = '#0a0d14';
+      synthCtx.fillRect(0, 0, w, h);
+
+      // Grid lines
+      synthCtx.strokeStyle = 'rgba(30, 58, 138, 0.3)';
+      synthCtx.lineWidth = 1;
+      const gridSize = 40;
+      for (let x = 0; x < w; x += gridSize) {
+        synthCtx.beginPath();
+        synthCtx.moveTo(x, 0);
+        synthCtx.lineTo(x, h);
+        synthCtx.stroke();
+      }
+      for (let y = 0; y < h; y += gridSize) {
+        synthCtx.beginPath();
+        synthCtx.moveTo(0, y);
+        synthCtx.lineTo(w, y);
+        synthCtx.stroke();
+      }
+
+      // Moving Neon Circles & Shapes
+      const cx = w / 2 + Math.cos(synthAnimFrame) * 200;
+      const cy = h / 2 + Math.sin(synthAnimFrame * 1.5) * 100;
+
+      // Radial Glow
+      const grad = synthCtx.createRadialGradient(cx, cy, 10, cx, cy, 180);
+      grad.addColorStop(0, 'rgba(59, 130, 246, 0.8)');
+      grad.addColorStop(0.5, 'rgba(147, 51, 234, 0.4)');
+      grad.addColorStop(1, 'rgba(0,0,0,0)');
+      synthCtx.fillStyle = grad;
+      synthCtx.fillRect(0, 0, w, h);
+
+      // Sharp Text Pattern for Testing Sharpness
+      synthCtx.fillStyle = '#ffffff';
+      synthCtx.font = 'bold 36px Inter, sans-serif';
+      synthCtx.fillText('QUANTUM WebGL SHADER TEST', 80, 120);
+
+      synthCtx.fillStyle = '#60a5fa';
+      synthCtx.font = '18px monospace';
+      synthCtx.fillText(`FRAME: ${Math.floor(synthAnimFrame * 60)} | RESOLUTION: ${w}x${h}`, 80, 155);
+
+      // Fine Noise Simulation Box for Denoise test
+      const boxX = w - 380;
+      const boxY = 80;
+      synthCtx.fillStyle = '#1e293b';
+      synthCtx.fillRect(boxX, boxY, 300, 200);
+      synthCtx.strokeStyle = '#3b82f6';
+      synthCtx.strokeRect(boxX, boxY, 300, 200);
+
+      // Draw artificial noise texture inside box
+      const imgData = synthCtx.getImageData(boxX + 10, boxY + 10, 280, 180);
+      const data = imgData.data;
+      for (let i = 0; i < data.length; i += 4) {
+        const noise = (Math.random() - 0.5) * 60;
+        data[i] = Math.min(255, Math.max(0, 100 + noise));     // R
+        data[i+1] = Math.min(255, Math.max(0, 120 + noise)); // G
+        data[i+2] = Math.min(255, Math.max(0, 160 + noise)); // B
+        data[i+3] = 255;
+      }
+      synthCtx.putImageData(imgData, boxX + 10, boxY + 10);
+
+      synthCtx.fillStyle = '#f3f4f6';
+      synthCtx.font = '12px sans-serif';
+      synthCtx.fillText('ARTIFICIAL NOISE TEST REGION', boxX + 20, boxY + 30);
+    }
+
+    // --- THREE.JS ENGINE SETUP ---
+    let renderer, scene, camera, mediaTexture;
+    let customPassMaterial, quadMesh;
+
+    function initThree() {
+      // Create WebGL Renderer
+      renderer = new THREE.WebGLRenderer({
+        canvas: canvas,
+        antialias: false,
+        powerPreference: "high-performance",
+        preserveDrawingBuffer: true
+      });
+      renderer.setPixelRatio(Math.min(window.devicePixelRatio, 2));
+      renderer.setSize(viewportContainer.clientWidth, viewportContainer.clientHeight);
+
+      // Scene & Orthographic Camera for 2D Post-Processing Quad
+      scene = new THREE.Scene();
+      camera = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
+
+      // Initial Texture from Synthetic Canvas
+      mediaTexture = new THREE.CanvasTexture(syntheticCanvas);
+      mediaTexture.minFilter = THREE.LinearFilter;
+      mediaTexture.magFilter = THREE.LinearFilter;
+
+      // Custom Fragment Shader combining Spatial Upscaling, CAS, Bilateral Denoise, & Dynamics
+      const fragmentShader = `
+        uniform sampler2D u_texture;
+        uniform vec2 u_resolution;
+        uniform float u_split_pos;
+        
+        // Quality Controls
+        uniform bool u_cas_enabled;
+        uniform float u_cas_sharpness;
+        
+        uniform bool u_denoise_enabled;
+        uniform float u_denoise_strength;
+        uniform float u_denoise_threshold;
+        
+        uniform float u_contrast;
+        uniform float u_vibrance;
+        uniform float u_unsharp_radius;
+        uniform int u_interpolation_mode; // 0: Bicubic, 1: Bilinear, 2: Nearest
+
+        varying vec2 v_uv;
+
+        // --- BICUBIC CATMULL-ROM SAMPLER ---
+        vec4 cubic(float v) {
+          vec4 c;
+          c.x = (1.0/6.0)*(((-v+3.0)*v-3.0)*v+1.0);
+          c.y = (1.0/6.0)*(((3.0*v-6.0)*v)*v+4.0);
+          c.z = (1.0/6.0)*(((-3.0*v+3.0)*v+3.0)*v+1.0);
+          c.w = (1.0/6.0)*(v*v*v);
+          return c;
+        }
+
+        vec4 textureBicubic(sampler2D tex, vec2 texCoords) {
+          vec2 texSize = u_resolution;
+          vec2 invTexSize = 1.0 / texSize;
+
+          texCoords = texCoords * texSize - 0.5;
+
+          vec2 fxy = fract(texCoords);
+          texCoords -= fxy;
+
+          vec4 xcubic = cubic(fxy.x);
+          vec4 ycubic = cubic(fxy.y);
+
+          vec4 c = texCoords.xxyy + vec2(-0.5, +1.5).xyxy;
+
+          vec4 s = vec4(xcubic.x + xcubic.y, xcubic.z + xcubic.w, ycubic.x + ycubic.y, zcubic.z + zcubic.w);
+          vec4 offset = c + vec4(xcubic.y, xcubic.w, ycubic.y, ycubic.w) / s;
+
+          vec4 sample0 = texture2D(tex, vec2(offset.x, offset.z) * invTexSize);
+          vec4 sample1 = texture2D(tex, vec2(offset.y, offset.z) * invTexSize);
+          vec4 sample2 = texture2D(tex, vec2(offset.x, offset.w) * invTexSize);
+          vec4 sample3 = texture2D(tex, vec2(offset.y, offset.w) * invTexSize);
+
+          float sx = s.x / (s.x + s.y);
+          float sy = s.z / (s.z + s.w);
+
+          return mix(mix(sample3, sample2, sx), mix(sample1, sample0, sx), sy);
+        }
+
+        // --- CONTRAST ADAPTIVE SHARPENING (AMD CAS SIMULATION) ---
+        vec3 applyCAS(sampler2D tex, vec2 uv, vec2 texelSize, float sharpness) {
+          vec3 a = texture2D(tex, uv + vec2(-texelSize.x, -texelSize.y)).rgb;
+          vec3 b = texture2D(tex, uv + vec2(0.0, -texelSize.y)).rgb;
+          vec3 c = texture2D(tex, uv + vec2(texelSize.x, -texelSize.y)).rgb;
+          vec3 d = texture2D(tex, uv + vec2(-texelSize.x, 0.0)).rgb;
+          vec3 e = texture2D(tex, uv).rgb;
+          vec3 f = texture2D(tex, uv + vec2(texelSize.x, 0.0)).rgb;
+          vec3 g = texture2D(tex, uv + vec2(-texelSize.x, texelSize.y)).rgb;
+          vec3 h = texture2D(tex, uv + vec2(0.0, texelSize.y)).rgb;
+          vec3 i = texture2D(tex, uv + vec2(texelSize.x, texelSize.y)).rgb;
+
+          // Soft min and max around cross neighbors
+          vec3 minRGB = min(min(min(d, e), min(f, b)), h);
+          vec3 maxRGB = max(max(max(d, e), max(f, b)), h);
+
+          // Smooth weighting factor
+          vec3 amp = clamp(min(minRGB, 1.0 - maxRGB) / (maxRGB + 0.0001), 0.0, 1.0);
+          vec3 w = sqrt(amp) * (-sharpness);
+
+          vec3 result = (b * w + d * w + f * w + h * w + e) / (1.0 + 4.0 * w);
+          return clamp(result, 0.0, 1.0);
+        }
+
+        // --- BILATERAL EDGE-AWARE DENOISING ---
+        vec3 applyBilateralDenoise(sampler2D tex, vec2 uv, vec2 texelSize, float strength, float threshold) {
+          vec3 centerColor = texture2D(tex, uv).rgb;
+          vec3 totalColor = centerColor;
+          float totalWeight = 1.0;
+
+          float spatialSigma = 1.5;
+          
+          for (int x = -2; x <= 2; x++) {
+            for (int y = -2; y <= 2; y++) {
+              if (x == 0 && y == 0) continue;
+              
+              vec2 offset = vec2(float(x), float(y)) * texelSize;
+              vec3 sampleColor = texture2D(tex, uv + offset).rgb;
+
+              // Spatial distance weight
+              float spatialWeight = exp(-float(x*x + y*y) / (2.0 * spatialSigma * spatialSigma));
+              
+              // Color difference weight (Edge preserving)
+              float colorDiff = length(centerColor - sampleColor);
+              float colorWeight = exp(-(colorDiff * colorDiff) / (2.0 * threshold * threshold));
+
+              float weight = spatialWeight * colorWeight * strength;
+              totalColor += sampleColor * weight;
+              totalWeight += weight;
+            }
+          }
+
+          return totalColor / totalWeight;
+        }
+
+        void main() {
+          vec2 uv = v_uv;
+          vec2 texelSize = 1.0 / u_resolution;
+
+          // ORIGINAL UNTOUCHED (LEFT SIDE OF SPLIT)
+          if (uv.x < u_split_pos) {
+            gl_FragColor = texture2D(u_texture, uv);
+            return;
+          }
+
+          // ENHANCED PIPELINE (RIGHT SIDE OF SPLIT)
+          vec3 color;
+
+          // 1. Spatial Sampler Stage
+          if (u_interpolation_mode == 0) {
+            color = textureBicubic(u_texture, uv).rgb;
+          } else {
+            color = texture2D(u_texture, uv).rgb;
+          }
+
+          // 2. Bilateral Denoising Stage
+          if (u_denoise_enabled) {
+            color = applyBilateralDenoise(u_texture, uv, texelSize, u_denoise_strength, u_denoise_threshold);
+          }
+
+          // 3. Contrast Adaptive Sharpening Stage
+          if (u_cas_enabled) {
+            color = applyCAS(u_texture, uv, texelSize, u_cas_sharpness);
+          }
+
+          // 4. Dynamic Range & Color Vibrance
+          // Contrast Adjustment
+          color = mix(vec3(0.5), color, u_contrast);
+
+          // Vibrance Adjustment
+          float luma = dot(color, vec3(0.2126, 0.7152, 0.0722));
+          float maxColor = max(color.r, max(color.g, color.b));
+          float sat = (maxColor - luma) / (maxColor + 0.0001);
+          color = mix(vec3(luma), color, 1.0 + (u_vibrance - 1.0) * (1.0 - sat));
+
+          gl_FragColor = vec4(clamp(color, 0.0, 1.0), 1.0);
+        }
+      `;
+
+      const vertexShader = `
+        varying vec2 v_uv;
+        void main() {
+          v_uv = uv;
+          gl_Position = vec4(position, 1.0);
+        }
+      `;
+
+      // Material Uniforms
+      customPassMaterial = new THREE.ShaderMaterial({
+        vertexShader: vertexShader,
+        fragmentShader: fragmentShader,
+        uniforms: {
+          u_texture: { value: mediaTexture },
+          u_resolution: { value: new THREE.Vector2(syntheticCanvas.width, syntheticCanvas.height) },
+          u_split_pos: { value: state.splitPos },
+          u_cas_enabled: { value: state.casEnabled },
+          u_cas_sharpness: { value: state.casSharpness },
+          u_denoise_enabled: { value: state.denoiseEnabled },
+          u_denoise_strength: { value: state.denoiseStrength },
+          u_denoise_threshold: { value: state.denoiseThreshold },
+          u_contrast: { value: state.contrast },
+          u_vibrance: { value: state.vibrance },
+          u_unsharp_radius: { value: state.unsharpRadius },
+          u_interpolation_mode: { value: state.interpolationMode }
+        }
+      });
+
+      // Full-screen Quad Mesh
+      const geometry = new THREE.PlaneGeometry(2, 2);
+      quadMesh = new THREE.Mesh(geometry, customPassMaterial);
+      scene.add(quadMesh);
+
+      // Handle Window Resizing
+      window.addEventListener('resize', onWindowResize);
+    }
+
+    function onWindowResize() {
+      const w = viewportContainer.clientWidth;
+      const h = viewportContainer.clientHeight;
+      renderer.setSize(w, h);
+    }
+
+    // --- ANIMATION & RENDER LOOP ---
+    let lastTime = performance.now();
+    let frameCount = 0;
+
+    function animate(currentTime) {
+      requestAnimationFrame(animate);
+
+      // Calculate Telemetry FPS & Latency
+      frameCount++;
+      const delta = currentTime - lastTime;
+      if (delta >= 500) {
+        state.fps = (frameCount * 1000) / delta;
+        state.frameTime = delta / frameCount;
+        
+        hudFps.innerText = state.fps.toFixed(1);
+        hudFrameTime.innerText = `${state.frameTime.toFixed(1)} ms`;
+
+        frameCount = 0;
+        lastTime = currentTime;
+      }
+
+      // Update synthetic frame texture if in synthetic mode
+      if (state.mediaType === 'synthetic') {
+        renderSyntheticFrame();
+        if (mediaTexture) mediaTexture.needsUpdate = true;
+      } else if (state.mediaType === 'video' && !videoElement.paused) {
+        if (mediaTexture) mediaTexture.needsUpdate = true;
+        updateVideoTimelineUI();
+      }
+
+      // Update uniforms dynamically
+      customPassMaterial.uniforms.u_split_pos.value = state.splitPos;
+
+      // Render Three.js Scene
+      renderer.render(scene, camera);
+    }
+
+    // --- INTERACTIVE SPLIT SCREEN CONTROLLER ---
+    function setupSplitScreenInteraction() {
+      let isDragging = false;
+
+      function updateSplitFromEvent(e) {
+        const rect = viewportContainer.getBoundingClientRect();
+        const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+        let x = (clientX - rect.left) / rect.width;
+        x = Math.max(0.0, Math.min(1.0, x));
+        state.splitPos = x;
+        splitDivider.style.left = `${x * 100}%`;
+      }
+
+      viewportContainer.addEventListener('mousedown', (e) => {
+        isDragging = true;
+        updateSplitFromEvent(e);
+      });
+
+      window.addEventListener('mousemove', (e) => {
+        if (isDragging) updateSplitFromEvent(e);
+      });
+
+      window.addEventListener('mouseup', () => {
+        isDragging = false;
+      });
+
+      // Touch screen support
+      viewportContainer.addEventListener('touchstart', (e) => {
+        isDragging = true;
+        updateSplitFromEvent(e);
+      });
+      window.addEventListener('touchmove', (e) => {
+        if (isDragging) updateSplitFromEvent(e);
+      });
+      window.addEventListener('touchend', () => {
+        isDragging = false;
+      });
+    }
+
+    // --- VIDEO TIMELINE & CONTROLS ---
+    function updateVideoTimelineUI() {
+      if (!videoElement.duration) return;
+      const progress = (videoElement.currentTime / videoElement.duration) * 100;
+      seekbar.value = progress;
+
+      const formatTime = (seconds) => {
+        const m = Math.floor(seconds / 60);
+        const s = Math.floor(seconds % 60);
+        return `${m.toString().padStart(2, '0')}:${s.toString().padStart(2, '0')}`;
+      };
+
+      timeDisplay.innerText = `${formatTime(videoElement.currentTime)} / ${formatTime(videoElement.duration)}`;
+    }
+
+    btnPlayPause.addEventListener('click', () => {
+      if (state.mediaType !== 'video') return;
+      if (videoElement.paused) {
+        videoElement.play();
+        btnPlayPause.innerHTML = '<i class="fa-solid fa-pause"></i>';
+      } else {
+        videoElement.pause();
+        btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
+      }
+    });
+
+    seekbar.addEventListener('input', () => {
+      if (state.mediaType !== 'video' || !videoElement.duration) return;
+      videoElement.currentTime = (seekbar.value / 100) * videoElement.duration;
+    });
+
+    document.getElementById('btn-step-fwd').addEventListener('click', () => {
+      if (state.mediaType === 'video') {
+        videoElement.pause();
+        videoElement.currentTime += 1 / 30; // 30 FPS step
+        btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
+      }
+    });
+
+    document.getElementById('btn-step-back').addEventListener('click', () => {
+      if (state.mediaType === 'video') {
+        videoElement.pause();
+        videoElement.currentTime -= 1 / 30;
+        btnPlayPause.innerHTML = '<i class="fa-solid fa-play"></i>';
+      }
+    });
+
+    document.getElementById('btn-mute').addEventListener('click', () => {
+      videoElement.muted = !videoElement.muted;
+      document.getElementById('btn-mute').innerHTML = videoElement.muted ? 
+        '<i class="fa-solid fa-volume-xmark"></i>' : '<i class="fa-solid fa-volume-high"></i>';
+    });
+
+    document.getElementById('btn-fullscreen').addEventListener('click', () => {
+      if (!document.fullscreenElement) {
+        viewportContainer.requestFullscreen();
+      } else {
+        document.exitFullscreen();
+      }
+    });
+
+    // --- MEDIA UPLOADER HANDLER ---
+    mediaInput.addEventListener('change', (e) => {
+      const file = e.target.files[0];
+      if (!file) return;
+
+      const url = URL.createObjectURL(file);
+      fileNameDisplay.innerText = `File: ${file.name}`;
+
+      if (file.type.startsWith('video/')) {
+        state.mediaType = 'video';
+        videoElement.src = url;
+        videoElement.load();
+        videoElement.play();
+        btnPlayPause.innerHTML = '<i class="fa-solid fa-pause"></i>';
+        videoControlsBar.classList.remove('hidden');
+
+        videoElement.onloadedmetadata = () => {
+          mediaTexture.dispose();
+          mediaTexture = new THREE.VideoTexture(videoElement);
+          mediaTexture.minFilter = THREE.LinearFilter;
+          mediaTexture.magFilter = THREE.LinearFilter;
+          customPassMaterial.uniforms.u_texture.value = mediaTexture;
+          updateResolutionMetrics(videoElement.videoWidth, videoElement.videoHeight);
+        };
+      } else if (file.type.startsWith('image/')) {
+        state.mediaType = 'image';
+        videoElement.pause();
+        videoControlsBar.classList.add('hidden');
+
+        imageElement.onload = () => {
+          mediaTexture.dispose();
+          mediaTexture = new THREE.Texture(imageElement);
+          mediaTexture.needsUpdate = true;
+          mediaTexture.minFilter = THREE.LinearFilter;
+          mediaTexture.magFilter = THREE.LinearFilter;
+          customPassMaterial.uniforms.u_texture.value = mediaTexture;
+          updateResolutionMetrics(imageElement.width, imageElement.height);
+        };
+        imageElement.src = url;
+      }
+    });
+
+    btnSynthetic.addEventListener('click', () => {
+      state.mediaType = 'synthetic';
+      videoElement.pause();
+      videoControlsBar.classList.remove('hidden');
+      fileNameDisplay.innerText = "Loaded: Synthetic Benchmark Pattern";
+      
+      mediaTexture.dispose();
+      mediaTexture = new THREE.CanvasTexture(syntheticCanvas);
+      customPassMaterial.uniforms.u_texture.value = mediaTexture;
+      updateResolutionMetrics(1280, 720);
+    });
+
+    function updateResolutionMetrics(srcW, srcH) {
+      const scale = (state.targetHeight / srcH).toFixed(2);
+      hudRes.innerText = `${Math.round(srcW * scale)}x${state.targetHeight}`;
+      hudScale.innerText = `${scale}x`;
+
+      customPassMaterial.uniforms.u_resolution.value.set(Math.round(srcW * scale), state.targetHeight);
+    }
+
+    // --- UI CONTROLS BINDING ---
+    // Target Resolution Preset Buttons
+    document.querySelectorAll('.res-btn').forEach(btn => {
+      btn.addEventListener('click', (e) => {
+        document.querySelectorAll('.res-btn').forEach(b => {
+          b.classList.remove('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+          b.classList.add('text-slate-300');
+        });
+
+        btn.classList.add('bg-blue-600/30', 'text-blue-300', 'border-blue-500/50');
+        btn.classList.remove('text-slate-300');
+
+        state.targetHeight = parseInt(btn.dataset.res);
+        document.getElementById('res-badge').innerText = `${state.targetHeight}p`;
+
+        let curW = 1280, curH = 720;
+        if (state.mediaType === 'video') { curW = videoElement.videoWidth || 1280; curH = videoElement.videoHeight || 720; }
+        else if (state.mediaType === 'image') { curW = imageElement.width || 1280; curH = imageElement.height || 720; }
+
+        updateResolutionMetrics(curW, curH);
+      });
+    });
+
+    // CAS Sharpening
+    sliderCasSharpness.addEventListener('input', (e) => {
+      state.casSharpness = parseFloat(e.target.value);
+      valCasSharpness.innerText = state.casSharpness.toFixed(2);
+      customPassMaterial.uniforms.u_cas_sharpness.value = state.casSharpness;
+    });
+    toggleCas.addEventListener('change', (e) => {
+      state.casEnabled = e.target.checked;
+      customPassMaterial.uniforms.u_cas_enabled.value = state.casEnabled;
+    });
+
+    // Bilateral Denoise
+    sliderDenoiseStrength.addEventListener('input', (e) => {
+      state.denoiseStrength = parseFloat(e.target.value);
+      valDenoiseStrength.innerText = state.denoiseStrength.toFixed(2);
+      customPassMaterial.uniforms.u_denoise_strength.value = state.denoiseStrength;
+    });
+    sliderDenoiseThreshold.addEventListener('input', (e) => {
+      state.denoiseThreshold = parseFloat(e.target.value);
+      valDenoiseThreshold.innerText = state.denoiseThreshold.toFixed(2);
+      customPassMaterial.uniforms.u_denoise_threshold.value = state.denoiseThreshold;
+    });
+    toggleDenoise.addEventListener('change', (e) => {
+      state.denoiseEnabled = e.target.checked;
+      customPassMaterial.uniforms.u_denoise_enabled.value = state.denoiseEnabled;
+    });
+
+    // Color Dynamics
+    sliderContrast.addEventListener('input', (e) => {
+      state.contrast = parseFloat(e.target.value);
+      valContrast.innerText = state.contrast.toFixed(2);
+      customPassMaterial.uniforms.u_contrast.value = state.contrast;
+    });
+    sliderVibrance.addEventListener('input', (e) => {
+      state.vibrance = parseFloat(e.target.value);
+      valVibrance.innerText = state.vibrance.toFixed(2);
+      customPassMaterial.uniforms.u_vibrance.value = state.vibrance;
+    });
+    sliderUnsharp.addEventListener('input', (e) => {
+      state.unsharpRadius = parseFloat(e.target.value);
+      valUnsharp.innerText = `${state.unsharpRadius.toFixed(1)}px`;
+      customPassMaterial.uniforms.u_unsharp_radius.value = state.unsharpRadius;
+    });
+
+    // Interpolation Selector
+    selectInterpolation.addEventListener('change', (e) => {
+      const modeMap = { 'bicubic': 0, 'bilinear': 1, 'nearest': 2 };
+      state.interpolationMode = modeMap[e.target.value];
+      customPassMaterial.uniforms.u_interpolation_mode.value = state.interpolationMode;
+
+      if (mediaTexture) {
+        if (e.target.value === 'nearest') {
+          mediaTexture.minFilter = THREE.NearestFilter;
+          mediaTexture.magFilter = THREE.NearestFilter;
+        } else {
+          mediaTexture.minFilter = THREE.LinearFilter;
+          mediaTexture.magFilter = THREE.LinearFilter;
+        }
+        mediaTexture.needsUpdate = true;
+      }
+    });
+
+    // --- SNAPSHOT EXPORTER ---
+    btnSnapshot.addEventListener('click', () => {
+      // Temporarily set split position to full enhanced view for export
+      const currentSplit = state.splitPos;
+      customPassMaterial.uniforms.u_split_pos.value = 0.0; // Show 100% enhanced
+      renderer.render(scene, camera);
+
+      const dataURL = canvas.toDataURL('image/png');
+      
+      const link = document.createElement('a');
+      link.download = `enhanced-snapshot-${Date.now()}.png`;
+      link.href = dataURL;
+      link.click();
+
+      // Restore split slider position
+      customPassMaterial.uniforms.u_split_pos.value = currentSplit;
+    });
+
+    // --- INITIALIZE ON LOAD ---
+    window.onload = () => {
+      initThree();
+      setupSplitScreenInteraction();
+      animate(0);
+    };
+  </script>
+</body>
+</html>
